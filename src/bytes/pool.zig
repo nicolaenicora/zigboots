@@ -11,14 +11,23 @@ pub fn Interface(comptime T: type) type {
 
         popFn: *const fn (self: *Self) Error!T,
         pushFn: *const fn (self: *Self, data: T) void,
+        createFn: *const fn (self: *Self) Error!T,
 
-        // __ptr: ?*const usize = null,
+        items: usize = 0,
 
         pub fn pop(self: *Self) Error!T {
+            if (self.items == 0) {
+                return self.createFn(self);
+            } else {
+                _ = @atomicRmw(usize, &self.items, .Sub, 1, .Monotonic);
+            }
+
             return self.popFn(self);
         }
 
         pub fn push(self: *Self, data: T) void {
+            _ = @atomicRmw(usize, &self.items, .Add, 1, .Monotonic);
+
             self.pushFn(self, data);
         }
 
@@ -41,34 +50,40 @@ pub fn Pool(comptime T: type, comptime createItemFn: *const fn (context: Context
 
         pool: Interface(T),
 
-        first: bool = false,
+        // first: bool = false,
 
         pub fn init(ctx: Context) Self {
             // const p = Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store } };
             // p.pool.__set_origin_ptr(@intFromPtr(&p));
-            return Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store } };
+            return Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store, .createFn = create } };
         }
 
         pub fn interface(self: Self) Interface(T) {
             return self.pool;
         }
 
+        pub fn create(pool: *Interface(T)) Error!T {
+            const self = @fieldParentPtr(Self, "pool", pool);
+
+            return try createItemFn(self.ctx);
+        }
+
         pub fn retrieve(pool: *Interface(T)) Error!T {
             // const self = @as(*Pool(T, createItemFn), @ptrFromInt(pool.__get_origin_ptr()));
             const self = @fieldParentPtr(Self, "pool", pool);
 
-            const v = @atomicLoad(bool, &self.first, .Monotonic);
-            @atomicStore(bool, &self.first, true, .Monotonic);
+            // const v = @atomicLoad(bool, &self.first, .Monotonic);
+            // @atomicStore(bool, &self.first, true, .Monotonic);
 
-            if (!v) {
-                self.queue.root = null;
-            }
+            // if (!v) {
+            //     self.queue.root = null;
+            // }
 
-            if (self.queue.pop()) |n| {
-                return n.data;
-            }
+            // if (self.queue.pop()) |n| {
+            //     return n.data;
+            // }
 
-            return try createItemFn(self.ctx);
+            return self.queue.pop().?.data;
         }
 
         pub fn store(pool: *Interface(T), data: T) void {

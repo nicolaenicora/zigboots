@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "zig-debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/zig-out/bin/zigboots",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "zig-debug-build"
+        },
+        {
+            "name": "zig-debug-test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/zig-cache/o/10833fcd5bcfee6cb6b450036104a5ce/test",
+            "args": ["src/main.zig"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "zig-debug-test-single-file",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/zig-cache/o/10833fcd5bcfee6cb6b450036104a5ce/test",
+            "args": ["src/main.zig"],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
