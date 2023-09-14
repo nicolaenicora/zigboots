@@ -62,9 +62,11 @@ pub fn main() !void {
     utf8BufferPool.push(sb);
 
     sb = try utf8BufferPool.pop();
+    var sb2 = try utf8BufferPool.pop();
 
     try sb.append("-Second Round");
     std.debug.print("{s}\n", .{sb.bytes()});
 
     utf8BufferPool.push(sb);
+    utf8BufferPool.push(sb2);
 }

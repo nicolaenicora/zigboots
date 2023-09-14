@@ -30,13 +30,6 @@ pub fn Interface(comptime T: type) type {
 
             self.pushFn(self, data);
         }
-
-        // pub fn __set_origin_ptr(self: *Self, ptr: usize) void {
-        //     self.__ptr = &ptr;
-        // }
-        // pub fn __get_origin_ptr(self: *Self) usize {
-        //     return self.__ptr.?.*;
-        // }
     };
 }
 
@@ -50,11 +43,7 @@ pub fn Pool(comptime T: type, comptime createItemFn: *const fn (context: Context
 
         pool: Interface(T),
 
-        // first: bool = false,
-
         pub fn init(ctx: Context) Self {
-            // const p = Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store } };
-            // p.pool.__set_origin_ptr(@intFromPtr(&p));
             return Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store, .createFn = create } };
         }
 
@@ -69,25 +58,16 @@ pub fn Pool(comptime T: type, comptime createItemFn: *const fn (context: Context
         }
 
         pub fn retrieve(pool: *Interface(T)) Error!T {
-            // const self = @as(*Pool(T, createItemFn), @ptrFromInt(pool.__get_origin_ptr()));
             const self = @fieldParentPtr(Self, "pool", pool);
 
-            // const v = @atomicLoad(bool, &self.first, .Monotonic);
-            // @atomicStore(bool, &self.first, true, .Monotonic);
+            if (self.queue.pop()) |n| {
+                return n.data;
+            }
 
-            // if (!v) {
-            //     self.queue.root = null;
-            // }
-
-            // if (self.queue.pop()) |n| {
-            //     return n.data;
-            // }
-
-            return self.queue.pop().?.data;
+            return try createItemFn(self.ctx);
         }
 
         pub fn store(pool: *Interface(T), data: T) void {
-            // const self = @as(*Pool(T, createItemFn), @ptrFromInt(pool.__get_origin_ptr()));
             const self = @fieldParentPtr(Self, "pool", pool);
 
             var n = Stack(T).Node{
