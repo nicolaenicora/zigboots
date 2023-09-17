@@ -1,81 +1,34 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Stack = std.atomic.Stack;
+const Queue = std.atomic.Queue;
 const Error = @import("../bytes/buffer.zig").Error;
+const CircularLifoList = @import("../list/circular.zig").CircularLifoList;
 
-pub const Context = struct { allocator: std.mem.Allocator };
-
-pub fn Interface(comptime T: type) type {
+pub fn Pool(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        popFn: *const fn (self: *Self) Error!T,
-        pushFn: *const fn (self: *Self, data: T) void,
-        createFn: *const fn (self: *Self) Error!T,
+        create: *const fn (allocator: std.mem.Allocator) Error!T,
 
-        items: usize = 0,
+        allocator: std.mem.Allocator,
+        queue: CircularLifoList(T),
+
+        pub fn init(allocator: std.mem.Allocator, createFn: *const fn (allocator: std.mem.Allocator) Error!T) !Self {
+            return Self{ .allocator = allocator, .queue = try CircularLifoList(T).init(allocator, 500), .create = createFn };
+        }
 
         pub fn pop(self: *Self) Error!T {
-            if (self.items == 0) {
-                return self.createFn(self);
-            } else {
-                _ = @atomicRmw(usize, &self.items, .Sub, 1, .Monotonic);
+            if (self.queue.pop()) |n| {
+                return n;
             }
 
-            return self.popFn(self);
+            return try self.create(self.allocator);
         }
 
         pub fn push(self: *Self, data: T) void {
-            _ = @atomicRmw(usize, &self.items, .Add, 1, .Monotonic);
-
-            self.pushFn(self, data);
-        }
-    };
-}
-
-pub fn Pool(comptime T: type, comptime createItemFn: *const fn (context: Context) Error!T) type {
-    return struct {
-        const Self = @This();
-
-        queue: Stack(T),
-
-        ctx: Context,
-
-        pool: Interface(T),
-
-        pub fn init(ctx: Context) Self {
-            return Self{ .queue = Stack(T).init(), .ctx = ctx, .pool = Interface(T){ .popFn = retrieve, .pushFn = store, .createFn = create } };
-        }
-
-        pub fn interface(self: Self) Interface(T) {
-            return self.pool;
-        }
-
-        pub fn create(pool: *Interface(T)) Error!T {
-            const self = @fieldParentPtr(Self, "pool", pool);
-
-            return try createItemFn(self.ctx);
-        }
-
-        pub fn retrieve(pool: *Interface(T)) Error!T {
-            const self = @fieldParentPtr(Self, "pool", pool);
-
-            if (self.queue.pop()) |n| {
-                return n.data;
-            }
-
-            return try createItemFn(self.ctx);
-        }
-
-        pub fn store(pool: *Interface(T), data: T) void {
-            const self = @fieldParentPtr(Self, "pool", pool);
-
-            var n = Stack(T).Node{
-                .data = data,
-                .next = null,
-            };
-
-            self.queue.push(&n);
+            var d = self.queue.push(data);
+            const l = d.rawLength();
+            _ = l;
         }
     };
 }

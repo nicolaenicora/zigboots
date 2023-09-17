@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
 const debug = std.debug;
 const assert = debug.assert;
 const mem = std.mem;
@@ -11,29 +13,21 @@ const Type = enum(u2) {
 };
 
 pub fn CircularLifoList(comptime T: type) type {
-    return CircularList(T, false, .LIFO);
-}
-
-pub fn CircularLifoListThreadSafe(comptime T: type) type {
-    return CircularList(T, true, .LIFO);
+    return CircularList(T, .LIFO);
 }
 
 pub fn CircularFifoList(comptime T: type) type {
-    return CircularList(T, false, .FIFO, null);
+    return CircularList(T, .FIFO);
 }
 
-pub fn CircularFifoListThreadSafe(comptime T: type) type {
-    return CircularList(T, true, .FIFO, null);
-}
-
-pub fn CircularList(comptime T: type, comptime threadsafe: bool, comptime LType: Type) type {
-    return CircularListAligned(T, threadsafe, LType, null);
+pub fn CircularList(comptime T: type, comptime LType: Type) type {
+    return CircularListAligned(T, !builtin.single_threaded, LType, null);
 }
 
 pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime LType: Type, comptime alignment: ?u29) type {
     if (alignment) |a| {
         if (a == @alignOf(T)) {
-            return CircularListAligned(T, null);
+            return CircularListAligned(T, threadsafe, LType, null);
         }
     }
     return struct {
@@ -66,19 +60,27 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             self.allocator.free(self.items.ptr[0..self.cap]);
         }
 
-        pub fn push(self: *Self, item: T) void {
+        pub fn push(self: *Self, item: T) T {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
             }
 
-            switch (LType) {
+            for (self.items) |it| {
+                if (@intFromPtr(&it) == @intFromPtr(&item)) {
+                    return item;
+                }
+            }
+
+            return switch (LType) {
                 inline .LIFO => self.pushLifo(item),
                 inline .FIFO => self.pushFifo(item),
-            }
+            };
         }
 
-        inline fn pushLifo(self: *Self, item: T) void {
+        inline fn pushLifo(self: *Self, item: T) T {
+            var previous: T = self.items[self.tail];
+
             self.items[self.tail] = item;
 
             const idx = (self.tail + 1) % self.cap;
@@ -87,9 +89,11 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             if (self.len < self.cap) {
                 @atomicStore(usize, &self.len, self.len + 1, .Monotonic);
             }
+
+            return previous;
         }
 
-        inline fn pushFifo(self: *Self, item: T) void {
+        inline fn pushFifo(self: *Self, item: T) T {
             if (self.len == self.cap and self.tail == self.tail) {
                 @atomicStore(usize, &self.head, self.head + 1, .Monotonic);
                 if (self.head == self.cap) {
@@ -97,7 +101,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
                 }
             }
 
-            self.pushLifo(item);
+            return self.pushLifo(item);
         }
 
         pub fn pop(self: *Self) ?T {
@@ -116,7 +120,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             };
         }
 
-        inline fn popLifo(self: *Self) ?T {
+        inline fn popLifo(self: *Self) T {
             var idx = self.head;
             var ptr = &self.head;
             if (idx == 0 and self.tail > 0) {
@@ -134,7 +138,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             return self.items[idx];
         }
 
-        inline fn popFifo(self: *Self) ?T {
+        inline fn popFifo(self: *Self) T {
             var idx = self.head;
 
             const res = self.items[idx];
@@ -168,7 +172,7 @@ test "fifo/push 1 element" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(34);
+    _ = cl.push(34);
 
     try testing.expectEqual(cl.len, 1);
 
@@ -185,11 +189,11 @@ test "fifo/push 5 elements" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(1);
-    cl.push(2);
-    cl.push(3);
-    cl.push(4);
-    cl.push(5);
+    _ = cl.push(1);
+    _ = cl.push(2);
+    _ = cl.push(3);
+    _ = cl.push(4);
+    _ = cl.push(5);
 
     try testing.expectEqual(cl.len, 5);
 
@@ -208,12 +212,12 @@ test "fifo/push 6 elements" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(1);
-    cl.push(2);
-    cl.push(3);
-    cl.push(4);
-    cl.push(5);
-    cl.push(6);
+    _ = cl.push(1);
+    _ = cl.push(2);
+    _ = cl.push(3);
+    _ = cl.push(4);
+    _ = cl.push(5);
+    _ = cl.push(6);
 
     try testing.expectEqual(cl.len, 5);
 
@@ -232,7 +236,7 @@ test "lifo/push 1 element" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(34);
+    _ = cl.push(34);
 
     try testing.expectEqual(cl.len, 1);
 
@@ -249,11 +253,11 @@ test "lifo/push 5 elements" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(5);
-    cl.push(4);
-    cl.push(3);
-    cl.push(2);
-    cl.push(1);
+    _ = cl.push(5);
+    _ = cl.push(4);
+    _ = cl.push(3);
+    _ = cl.push(2);
+    _ = cl.push(1);
 
     try testing.expectEqual(cl.len, 5);
 
@@ -272,12 +276,12 @@ test "lifo/push 6 elements" {
 
     try testing.expectEqual(cl.len, 0);
 
-    cl.push(6);
-    cl.push(5);
-    cl.push(4);
-    cl.push(3);
-    cl.push(2);
-    cl.push(1);
+    _ = cl.push(6);
+    _ = cl.push(5);
+    _ = cl.push(4);
+    _ = cl.push(3);
+    _ = cl.push(2);
+    _ = cl.push(1);
 
     try testing.expectEqual(cl.len, 5);
 
