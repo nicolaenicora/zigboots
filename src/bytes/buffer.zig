@@ -39,7 +39,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             self.allocator.free(self.ptr[0..self.cap]);
         }
 
-        pub fn allocate(self: *Self, cap: usize) Error!void {
+        pub fn resize(self: *Self, cap: usize) Error!void {
             const l = self.len;
 
             var slice = try self.allocator.alloc(u8, cap);
@@ -57,7 +57,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             }
 
             if (self.len + array.len > self.cap) {
-                try self.allocate((self.len + array.len) * 2);
+                try self.resize((self.len + array.len) * 2);
             }
 
             var i: usize = 0;
@@ -119,7 +119,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             return buf;
         }
 
-        pub fn copy(self: *Self) Error!?[]u8 {
+        pub fn copy(self: *Self) Error![]u8 {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -128,7 +128,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             return self.copyUsingAllocator(self.allocator);
         }
 
-        pub fn copyUsingAllocator(self: *Self, allocator: std.mem.Allocator) Error!?[]u8 {
+        pub fn copyUsingAllocator(self: *Self, allocator: std.mem.Allocator) Error![]u8 {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -149,7 +149,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
                 defer self.mu.unlock();
             }
 
-            try self.allocate(self.cap * (n + 1));
+            try self.resize(self.cap * (n + 1));
 
             var i: usize = 1;
             while (i <= n) : (i += 1) {

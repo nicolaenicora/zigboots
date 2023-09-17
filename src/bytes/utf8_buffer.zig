@@ -94,7 +94,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
 
             // Make sure buffer has enough space
             if (self.buffer.len + array.len > self.buffer.cap) {
-                try self.buffer.allocate((self.buffer.len + array.len) * 2);
+                try self.buffer.resize((self.buffer.len + array.len) * 2);
             }
 
             // If the index is >= len, then simply push to the end.
