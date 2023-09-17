@@ -4,20 +4,19 @@ const assert = debug.assert;
 const math = std.math;
 const mem = std.mem;
 const Allocator = mem.Allocator;
+const AllocatorError = mem.Allocator.Error;
 
-const CircularLifoList = @import("list/circular.zig").CircularLifoList;
-const CircularFifoList = @import("list/circular.zig").CircularFifoList;
+const LoggerBuilder = @import("logger.zig").LoggerBuilder;
+const Level = @import("logger.zig").Level;
 
-const Package = struct {
-    value: i128,
-};
+const Error = @import("bytes/buffer.zig").Error;
+const Utf8BufferPool = @import("bytes/utf8_buffer.zig").Utf8BufferPool;
+const Utf8Buffer = @import("bytes/utf8_buffer.zig").Utf8Buffer;
 
-fn printList(l: CircularLifoList(i32)) void {
-    for (0..l.cap) |i| {
-        if (l.read(i)) |x| {
-            std.debug.print("{}, ", .{x});
-        }
-    }
+const Pool = @import("bytes/pool.zig").Pool;
+
+pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Utf8Buffer(false) {
+    return Utf8Buffer(false).init(allocator);
 }
 
 pub fn main() !void {
@@ -28,85 +27,76 @@ pub fn main() !void {
 
     const allocator = arena.allocator();
 
-    var d = try CircularLifoList(i32).init(allocator, 5);
-    defer d.deinit();
+    // var utf8BufferPool = Utf8BufferPool(true).init(allocator);
+    // var sb = try utf8BufferPool.pop();
+    // defer sb.deinit();
 
-    _ = d.push(1);
-    _ = d.push(2);
-    _ = d.push(3);
-    _ = d.push(4);
+    var utf8BufferPool = try Pool(Utf8Buffer(false)).init(allocator, NewUtf8Buffer);
+    var sb = try utf8BufferPool.pop();
 
-    printList(d);
-    std.debug.print("\n", .{});
+    try sb.append("SB------");
+    try sb.append("A");
+    try sb.append("\u{5360}");
+    try sb.append("💯");
+    try sb.append("Hell");
 
-    if (d.pop()) |x| {
-        std.debug.print("\n======== Pop ======== : {}\n", .{x});
+    try sb.pushAt("🔥", 8);
+    std.debug.print("{s} --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
 
-        printList(d);
-        std.debug.print("\n", .{});
-    }
+    try utf8BufferPool.push(&sb);
 
-    _ = d.push(5);
-    _ = d.push(6);
-    _ = d.push(7);
+    var sb10 = try utf8BufferPool.pop();
+    try sb10.append("-Second Round SB");
+    std.debug.print("{s} --- from {any}\n", .{ sb10.bytes(), @intFromPtr(&sb10) });
 
-    printList(d);
-    std.debug.print("\n", .{});
+    var sb2 = try utf8BufferPool.pop();
+    try sb2.append("SB2------");
+    try sb2.append("💯");
+    std.debug.print("{s} --- from {any}\n", .{ sb2.bytes(), @intFromPtr(&sb2) });
 
-    if (d.pop()) |x| {
-        std.debug.print("\n======== Pop ======== : {}\n", .{x});
-        printList(d);
-        std.debug.print("\n", .{});
-    }
+    try utf8BufferPool.push(&sb10);
+    try utf8BufferPool.push(&sb2);
 
-    _ = d.push(8);
-    _ = d.push(9);
+    var sb21 = try utf8BufferPool.pop();
+    try sb21.append("Finally");
+    std.debug.print("{s} --- from {any}\n", .{ sb21.bytes(), @intFromPtr(&sb21) });
 
-    printList(d);
-    std.debug.print("\n", .{});
+    var sb11 = try utf8BufferPool.pop();
+    try sb11.append("Finally");
+    std.debug.print("{s} --- from {any}\n", .{ sb11.bytes(), @intFromPtr(&sb11) });
 
-    std.debug.print("\n======== Pop ======== : ", .{});
-    while (d.pop()) |x| {
-        std.debug.print("{},", .{x});
-    }
-    std.debug.print("\n", .{});
+    try utf8BufferPool.push(&sb11);
+    try utf8BufferPool.push(&sb21);
 
-    _ = d.push(11);
-    _ = d.push(12);
-    _ = d.push(13);
-    _ = d.push(14);
-    _ = d.push(15);
-    _ = d.push(16);
-    _ = d.push(17);
-    _ = d.push(18);
+    var sb12 = try utf8BufferPool.pop();
+    try sb12.append("Finally2");
+    std.debug.print("{s} --- from {any}\n", .{ sb12.bytes(), @intFromPtr(&sb12) });
 
-    printList(d);
-    std.debug.print("\n", .{});
+    var sb22 = try utf8BufferPool.pop();
+    try sb22.append("Finally2");
+    std.debug.print("{s} --- from {any}\n", .{ sb22.bytes(), @intFromPtr(&sb22) });
 
-    try d.resize(10);
-    std.debug.print("Resized to 10 =>", .{});
+    var sb3 = try utf8BufferPool.pop();
+    try sb3.append("SB3------");
+    try sb3.append("New Finally");
+    std.debug.print("{s} --- from {any}\n", .{ sb3.bytes(), @intFromPtr(&sb3) });
 
-    _ = d.push(18);
-    _ = d.push(19);
-    _ = d.push(20);
-    _ = d.push(21);
-    _ = d.push(22);
-    _ = d.push(23);
-    _ = d.push(24);
+    try utf8BufferPool.push(&sb12);
+    try utf8BufferPool.push(&sb22);
+    try utf8BufferPool.push(&sb3);
+    try utf8BufferPool.push(&sb3);
 
-    printList(d);
-    std.debug.print("\n", .{});
+    std.debug.print("=============================\n", .{});
+    var sb31 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb31.bytes(), @intFromPtr(&sb31) });
+    var sb32 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb32.bytes(), @intFromPtr(&sb32) });
+    var sb23 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb23.bytes(), @intFromPtr(&sb23) });
 
-    try d.resize(5);
-    std.debug.print("Resized to 5 =>", .{});
+    var sb24 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb24.bytes(), @intFromPtr(&sb24) });
 
-    printList(d);
-    std.debug.print("\n", .{});
-
-    std.debug.print("\n======== Pop ======== : ", .{});
-    while (d.pop()) |x| {
-        std.debug.print("{},", .{x});
-    }
-
-    std.debug.print("\n", .{});
+    var sb4 = try utf8BufferPool.pop();
+    std.debug.print("--- {s} --- from {any}\n", .{ sb4.bytes(), @intFromPtr(&sb4) });
 }
