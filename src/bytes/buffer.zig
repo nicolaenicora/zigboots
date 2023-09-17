@@ -21,21 +21,13 @@ pub fn Buffer(comptime threadsafe: bool) type {
         cap: usize = 0,
         len: usize = 0,
 
-        pub fn initEmpty(allocator: std.mem.Allocator) Self {
+        pub fn init(allocator: std.mem.Allocator) Self {
             return Self{
                 .ptr = @as([*]u8, @ptrFromInt(0xFFFFFFFF)),
                 .allocator = allocator,
                 .cap = 0,
                 .len = 0,
             };
-        }
-        pub fn init(allocator: std.mem.Allocator) Error!Self {
-            return initWithCapacity(allocator, 1024);
-        }
-        pub fn initWithCapacity(allocator: std.mem.Allocator, cap: usize) Error!Self {
-            var buf = initEmpty(allocator);
-            try buf.allocate(cap);
-            return buf;
         }
 
         pub fn deinit(self: *Self) void {
@@ -116,13 +108,13 @@ pub fn Buffer(comptime threadsafe: bool) type {
             return self.cloneUsingAllocator(self.allocator);
         }
 
-        pub fn cloneUsingAllocator(self: *Self, allocator: std.mem.Allocator) Error!Self {
+        pub fn cloneUsingAllocator(self: *Self, allocator: std.mem.Allocator) !Self {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
             }
 
-            var buf = try initWithCapacity(allocator, self.len);
+            var buf = init(allocator);
             _ = try buf.write(self.ptr[0..self.len]);
             return buf;
         }

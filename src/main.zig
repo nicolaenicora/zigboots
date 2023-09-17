@@ -15,8 +15,8 @@ const Utf8Buffer = @import("bytes/utf8_buffer.zig").Utf8Buffer;
 
 const Pool = @import("bytes/pool.zig").Pool;
 
-pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Error!Utf8Buffer(false) {
-    return try Utf8Buffer(false).initWithCapacity(allocator, 250);
+pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Utf8Buffer(false) {
+    return Utf8Buffer(false).init(allocator);
 }
 
 pub fn main() !void {

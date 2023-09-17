@@ -41,13 +41,8 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
 
         buffer: Buffer(threadsafe),
 
-        pub fn init(allocator: std.mem.Allocator) Error!Self {
-            return Self{ .buffer = try Buffer(threadsafe).init(allocator) };
-        }
-
-        pub fn initWithCapacity(allocator: std.mem.Allocator, cap: usize) Error!Self {
-            var buf = try Buffer(threadsafe).initWithCapacity(allocator, cap);
-            return Self{ .buffer = buf };
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return Self{ .buffer = Buffer(threadsafe).init(allocator) };
         }
 
         pub fn deinit(self: *Self) void {
@@ -339,7 +334,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             }
 
             if (self.split(delimiters, index)) |block| {
-                var s = Self{ .buffer = Buffer(threadsafe).initEmpty(self.buffer.allocator) };
+                var s = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
                 try s.append(block);
                 return s;
             }
@@ -381,7 +376,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
                 defer self.buffer.mu.unlock();
             }
 
-            var result = Self{ .buffer = Buffer(threadsafe).initEmpty(self.buffer.allocator) };
+            var result = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
 
             if (self.utf8Position(start, true)) |rStart| {
                 if (self.utf8Position(end, true)) |rEnd| {
@@ -482,7 +477,7 @@ test "Basic Usage" {
     var arena = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    var buffer = try Utf8Buffer(true).init(arena.allocator());
+    var buffer = Utf8Buffer(true).init(arena.allocator());
     defer buffer.deinit();
 
     // Use functions provided
@@ -500,12 +495,12 @@ test "String Tests" {
     var arena = std.heap.ArenaAllocator.init(page_allocator);
     defer arena.deinit();
 
-    var buffer = try Utf8Buffer(true).init(arena.allocator());
+    var buffer = Utf8Buffer(true).init(arena.allocator());
     defer buffer.deinit();
 
     // truncate
     buffer.clear();
-    assert(buffer.capacity() == 1024);
+    assert(buffer.capacity() == 0);
     assert(buffer.rawLength() == 0);
 
     // append
@@ -586,7 +581,7 @@ test "String Tests" {
     assert(eql(u8, buffer.split("💯", 5).?, "Hello"));
     assert(eql(u8, buffer.split("💯", 6).?, ""));
 
-    var splitStr = try Utf8Buffer(true).init(arena.allocator());
+    var splitStr = Utf8Buffer(true).init(arena.allocator());
     defer splitStr.deinit();
 
     try splitStr.append("variable='value'");

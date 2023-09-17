@@ -8,12 +8,12 @@ pub fn Pool(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        create: *const fn (allocator: std.mem.Allocator) Error!T,
+        create: *const fn (allocator: std.mem.Allocator) T,
 
         allocator: std.mem.Allocator,
         queue: CircularLifoList(usize),
 
-        pub fn init(allocator: std.mem.Allocator, createFn: *const fn (allocator: std.mem.Allocator) Error!T) !Self {
+        pub fn init(allocator: std.mem.Allocator, createFn: *const fn (allocator: std.mem.Allocator) T) !Self {
             return Self{ .allocator = allocator, .queue = try CircularLifoList(usize).init(allocator, 100), .create = createFn };
         }
 
@@ -22,7 +22,7 @@ pub fn Pool(comptime T: type) type {
                 return @as(*T, @ptrFromInt(n)).*;
             }
 
-            return try self.create(self.allocator);
+            return self.create(self.allocator);
         }
 
         pub fn push(self: *Self, data: *const T) void {
