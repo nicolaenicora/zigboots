@@ -35,80 +35,68 @@ pub fn main() !void {
     var sb = try utf8BufferPool.pop();
 
     try sb.append("SB------");
-    // try sb.append("A");
-    // try sb.append("\u{5360}");
-    // try sb.append("💯");
-    // try sb.append("Hell");
+    try sb.append("A");
+    try sb.append("\u{5360}");
+    try sb.append("💯");
+    try sb.append("Hell");
 
-    // const d = sb.rawLength();
-    // std.debug.print("{any}\n", .{d});
+    try sb.pushAt("🔥", 8);
+    std.debug.print("{s} --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
 
-    // std.debug.print("{s}\n", .{sb.bytes()});
+    utf8BufferPool.push(&sb);
 
-    // try sb.pushAt("🔥", 1);
-
-    // if (sb.at(1)) |v| {
-    //     std.debug.print("{s}\n", .{v});
-    // }
-
-    // std.debug.print("{s}\n", .{sb.bytes()});
-
-    // if (sb.compare("A🔥\u{5360}💯Hell")) {
-    //     std.debug.print("--->Huraa te same.<---\n", .{});
-    // }
-
-    // try sb.removeFrom(sb.rawLength() - 1);
-
-    utf8BufferPool.push(sb);
-
-    sb = try utf8BufferPool.pop();
-    try sb.append("-Second Round SB");
-    std.debug.print("{s}\n", .{sb.bytes()});
+    var sb10 = try utf8BufferPool.pop();
+    try sb10.append("-Second Round SB");
+    std.debug.print("{s} --- from {any}\n", .{ sb10.bytes(), @intFromPtr(&sb10) });
 
     var sb2 = try utf8BufferPool.pop();
     try sb2.append("SB2------");
-    try sb2.append("-Second Round SB2");
-    std.debug.print("{s}\n", .{sb2.bytes()});
+    try sb2.append("💯");
+    std.debug.print("{s} --- from {any}\n", .{ sb2.bytes(), @intFromPtr(&sb2) });
 
-    utf8BufferPool.push(sb);
-    utf8BufferPool.push(sb2);
+    utf8BufferPool.push(&sb10);
+    utf8BufferPool.push(&sb2);
 
-    sb2 = try utf8BufferPool.pop();
-    try sb2.append("Finally");
-    std.debug.print("{s}\n", .{sb2.bytes()});
+    var sb21 = try utf8BufferPool.pop();
+    try sb21.append("Finally");
+    std.debug.print("{s} --- from {any}\n", .{ sb21.bytes(), @intFromPtr(&sb21) });
 
-    sb = try utf8BufferPool.pop();
-    try sb.append("Finally");
-    std.debug.print("{s}\n", .{sb.bytes()});
+    var sb11 = try utf8BufferPool.pop();
+    try sb11.append("Finally");
+    std.debug.print("{s} --- from {any}\n", .{ sb11.bytes(), @intFromPtr(&sb11) });
 
-    utf8BufferPool.push(sb);
-    utf8BufferPool.push(sb2);
+    utf8BufferPool.push(&sb11);
+    utf8BufferPool.push(&sb21);
 
-    sb = try utf8BufferPool.pop();
-    try sb.append("Finally");
-    std.debug.print("{s}\n", .{sb.bytes()});
+    var sb12 = try utf8BufferPool.pop();
+    try sb12.append("Finally2");
+    std.debug.print("{s} --- from {any}\n", .{ sb12.bytes(), @intFromPtr(&sb12) });
 
-    sb2 = try utf8BufferPool.pop();
-    try sb2.append("Finally");
-    std.debug.print("{s}\n", .{sb2.bytes()});
+    var sb22 = try utf8BufferPool.pop();
+    try sb22.append("Finally2");
+    std.debug.print("{s} --- from {any}\n", .{ sb22.bytes(), @intFromPtr(&sb22) });
 
     var sb3 = try utf8BufferPool.pop();
     try sb3.append("SB3------");
     try sb3.append("New Finally");
-    std.debug.print("{s}\n", .{sb3.bytes()});
+    std.debug.print("{s} --- from {any}\n", .{ sb3.bytes(), @intFromPtr(&sb3) });
 
-    utf8BufferPool.push(sb);
-    utf8BufferPool.push(sb2);
-    utf8BufferPool.push(sb3);
-    utf8BufferPool.push(sb3);
+    utf8BufferPool.push(&sb12);
+    utf8BufferPool.push(&sb22);
+    utf8BufferPool.push(&sb3);
+    utf8BufferPool.push(&sb3);
 
     std.debug.print("=============================\n", .{});
-    sb3 = try utf8BufferPool.pop();
-    std.debug.print("{s}\n", .{sb3.bytes()});
-    sb3 = try utf8BufferPool.pop();
-    std.debug.print("{s}\n", .{sb3.bytes()});
-    sb2 = try utf8BufferPool.pop();
-    std.debug.print("{s}\n", .{sb2.bytes()});
-    sb = try utf8BufferPool.pop();
-    std.debug.print("{s}\n", .{sb.bytes()});
+    var sb31 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb31.bytes(), @intFromPtr(&sb31) });
+    var sb32 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb32.bytes(), @intFromPtr(&sb32) });
+    var sb23 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb23.bytes(), @intFromPtr(&sb23) });
+
+    var sb24 = try utf8BufferPool.pop();
+    std.debug.print("{s} --- from {any}\n", .{ sb24.bytes(), @intFromPtr(&sb24) });
+
+    var sb4 = try utf8BufferPool.pop();
+    std.debug.print("--- {s} --- from {any}\n", .{ sb4.bytes(), @intFromPtr(&sb4) });
 }

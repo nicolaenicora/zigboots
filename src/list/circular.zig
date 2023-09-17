@@ -66,19 +66,13 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
                 defer self.mu.unlock();
             }
 
-            for (self.items) |it| {
-                if (@intFromPtr(&it) == @intFromPtr(&item)) {
-                    return item;
-                }
-            }
-
             return switch (LType) {
-                inline .LIFO => self.pushLifo(item),
-                inline .FIFO => self.pushFifo(item),
+                .LIFO => self.pushLifo(item),
+                .FIFO => self.pushFifo(item),
             };
         }
 
-        inline fn pushLifo(self: *Self, item: T) T {
+        fn pushLifo(self: *Self, item: T) T {
             var previous: T = self.items[self.tail];
 
             self.items[self.tail] = item;
@@ -93,7 +87,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             return previous;
         }
 
-        inline fn pushFifo(self: *Self, item: T) T {
+        fn pushFifo(self: *Self, item: T) T {
             if (self.len == self.cap and self.tail == self.tail) {
                 @atomicStore(usize, &self.head, self.head + 1, .Monotonic);
                 if (self.head == self.cap) {
@@ -115,12 +109,12 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             }
 
             return switch (LType) {
-                inline .LIFO => self.popLifo(),
-                inline .FIFO => self.popFifo(),
+                .LIFO => self.popLifo(),
+                .FIFO => self.popFifo(),
             };
         }
 
-        inline fn popLifo(self: *Self) T {
+        fn popLifo(self: *Self) T {
             var idx = self.head;
             var ptr = &self.head;
             if (idx == 0 and self.tail > 0) {
@@ -138,7 +132,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             return self.items[idx];
         }
 
-        inline fn popFifo(self: *Self) T {
+        fn popFifo(self: *Self) T {
             var idx = self.head;
 
             const res = self.items[idx];
