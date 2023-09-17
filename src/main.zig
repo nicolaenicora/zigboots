@@ -31,7 +31,7 @@ pub fn main() !void {
     // var sb = try utf8BufferPool.pop();
     // defer sb.deinit();
 
-    var utf8BufferPool = try Pool(Utf8Buffer(false)).init(allocator, NewUtf8Buffer);
+    var utf8BufferPool = try Pool(Utf8Buffer(false)).initWithCapacity(allocator, NewUtf8Buffer, 4);
     var sb = try utf8BufferPool.pop();
 
     try sb.append("SB------");
@@ -43,7 +43,7 @@ pub fn main() !void {
     try sb.pushAt("🔥", 8);
     std.debug.print("{s} --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
 
-    utf8BufferPool.push(&sb);
+    try utf8BufferPool.push(&sb);
 
     var sb10 = try utf8BufferPool.pop();
     try sb10.append("-Second Round SB");
@@ -54,8 +54,8 @@ pub fn main() !void {
     try sb2.append("💯");
     std.debug.print("{s} --- from {any}\n", .{ sb2.bytes(), @intFromPtr(&sb2) });
 
-    utf8BufferPool.push(&sb10);
-    utf8BufferPool.push(&sb2);
+    try utf8BufferPool.push(&sb10);
+    try utf8BufferPool.push(&sb2);
 
     var sb21 = try utf8BufferPool.pop();
     try sb21.append("Finally");
@@ -65,8 +65,8 @@ pub fn main() !void {
     try sb11.append("Finally");
     std.debug.print("{s} --- from {any}\n", .{ sb11.bytes(), @intFromPtr(&sb11) });
 
-    utf8BufferPool.push(&sb11);
-    utf8BufferPool.push(&sb21);
+    try utf8BufferPool.push(&sb11);
+    try utf8BufferPool.push(&sb21);
 
     var sb12 = try utf8BufferPool.pop();
     try sb12.append("Finally2");
@@ -81,10 +81,10 @@ pub fn main() !void {
     try sb3.append("New Finally");
     std.debug.print("{s} --- from {any}\n", .{ sb3.bytes(), @intFromPtr(&sb3) });
 
-    utf8BufferPool.push(&sb12);
-    utf8BufferPool.push(&sb22);
-    utf8BufferPool.push(&sb3);
-    utf8BufferPool.push(&sb3);
+    try utf8BufferPool.push(&sb12);
+    try utf8BufferPool.push(&sb22);
+    try utf8BufferPool.push(&sb3);
+    try utf8BufferPool.push(&sb3);
 
     std.debug.print("=============================\n", .{});
     var sb31 = try utf8BufferPool.pop();

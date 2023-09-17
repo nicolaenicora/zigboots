@@ -60,6 +60,10 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             self.allocator.free(self.items.ptr[0..self.cap]);
         }
 
+        pub fn isFull(self: Self) bool {
+            return self.len == self.cap;
+        }
+
         pub fn push(self: *Self, item: T) T {
             if (threadsafe) {
                 self.mu.lock();
@@ -127,8 +131,12 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
 
             idx = (idx - 1) % self.cap;
             @atomicStore(usize, ptr, idx, .Monotonic);
-
             @atomicStore(usize, &self.len, self.len - 1, .Monotonic);
+
+            if (self.len == 0) {
+                @atomicStore(usize, &self.tail, 0, .Monotonic);
+                @atomicStore(usize, &self.head, 0, .Monotonic);
+            }
             return self.items[idx];
         }
 
@@ -140,7 +148,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
             @atomicStore(usize, &self.head, idx, .Monotonic);
             @atomicStore(usize, &self.len, self.len - 1, .Monotonic);
 
-            if (self.len == 0 and self.head != self.tail) {
+            if (self.len == 0) {
                 @atomicStore(usize, &self.tail, 0, .Monotonic);
                 @atomicStore(usize, &self.head, 0, .Monotonic);
             }
@@ -161,7 +169,7 @@ pub fn CircularListAligned(comptime T: type, comptime threadsafe: bool, comptime
 const testing = std.testing;
 
 test "fifo/push 1 element" {
-    var cl = try CircularList(i32, true, .FIFO).init(testing.allocator, 5);
+    var cl = try CircularFifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -178,7 +186,7 @@ test "fifo/push 1 element" {
 }
 
 test "fifo/push 5 elements" {
-    var cl = try CircularList(i32, true, .FIFO).init(testing.allocator, 5);
+    var cl = try CircularFifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -201,7 +209,7 @@ test "fifo/push 5 elements" {
 }
 
 test "fifo/push 6 elements" {
-    var cl = try CircularList(i32, true, .FIFO).init(testing.allocator, 5);
+    var cl = try CircularFifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -225,7 +233,7 @@ test "fifo/push 6 elements" {
 }
 
 test "lifo/push 1 element" {
-    var cl = try CircularList(i32, true, .LIFO).init(testing.allocator, 5);
+    var cl = try CircularLifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -242,7 +250,7 @@ test "lifo/push 1 element" {
 }
 
 test "lifo/push 5 elements" {
-    var cl = try CircularList(i32, true, .LIFO).init(testing.allocator, 5);
+    var cl = try CircularLifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -265,7 +273,7 @@ test "lifo/push 5 elements" {
 }
 
 test "lifo/push 6 elements" {
-    var cl = try CircularList(i32, true, .LIFO).init(testing.allocator, 5);
+    var cl = try CircularLifoList(i32).init(testing.allocator, 5);
     defer cl.deinit();
 
     try testing.expectEqual(cl.len, 0);
@@ -295,13 +303,14 @@ test "lifo/push 6 elements" {
 // const mem = std.mem;
 // const Allocator = mem.Allocator;
 
-// const CircularList = @import("circular_list.zig").CircularList;
+// const CircularLifoList = @import("list/circular.zig").CircularLifoList;
+// const CircularFifoList = @import("list/circular.zig").CircularFifoList;
 
 // const Package = struct {
 //     value: i128,
 // };
 
-// fn printList(l: CircularList(i32, true)) void {
+// fn printList(l: CircularFifoList(i32)) void {
 //     for (0..l.cap) |i| {
 //         if (l.read(i)) |x| {
 //             std.debug.print("{}, ", .{x});
@@ -317,14 +326,14 @@ test "lifo/push 6 elements" {
 
 //     const allocator = arena.allocator();
 
-//     const list = try CircularList(i32, true).initAsFifo(allocator, 5);
+//     const list = try CircularFifoList(i32).init(allocator, 5);
 //     defer list.deinit();
 
 //     const d = @constCast(&list);
-//     d.push(1);
-//     d.push(2);
-//     d.push(3);
-//     d.push(4);
+//     _ = d.push(1);
+//     _ = d.push(2);
+//     _ = d.push(3);
+//     _ = d.push(4);
 
 //     printList(list);
 //     std.debug.print("\n", .{});
@@ -336,9 +345,9 @@ test "lifo/push 6 elements" {
 //         std.debug.print("\n", .{});
 //     }
 
-//     d.push(5);
-//     d.push(6);
-//     d.push(7);
+//     _ = d.push(5);
+//     _ = d.push(6);
+//     _ = d.push(7);
 
 //     printList(list);
 //     std.debug.print("\n", .{});
@@ -349,8 +358,8 @@ test "lifo/push 6 elements" {
 //         std.debug.print("\n", .{});
 //     }
 
-//     d.push(8);
-//     d.push(9);
+//     _ = d.push(8);
+//     _ = d.push(9);
 
 //     printList(list);
 //     std.debug.print("\n", .{});
@@ -361,11 +370,14 @@ test "lifo/push 6 elements" {
 //     }
 //     std.debug.print("\n", .{});
 
-//     d.push(10);
-//     d.push(11);
-//     d.push(12);
-//     d.push(13);
-//     d.push(14);
+//     _ = d.push(11);
+//     _ = d.push(12);
+//     _ = d.push(13);
+//     _ = d.push(14);
+//     _ = d.push(15);
+//     _ = d.push(16);
+//     _ = d.push(17);
+//     _ = d.push(18);
 
 //     printList(list);
 //     std.debug.print("\n", .{});
