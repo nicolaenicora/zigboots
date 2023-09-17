@@ -1,5 +1,5 @@
 const std = @import("std");
-const Queue = std.atomic.Queue;
+const Stack = std.atomic.Stack;
 
 const assert = std.debug.assert;
 
@@ -7,6 +7,35 @@ pub const Error = error{
     OutOfMemory,
     InvalidRange,
 };
+
+pub fn BufferPool(comptime threadsafe: bool) type {
+    return struct {
+        const Self = @This();
+
+        allocator: std.mem.Allocator,
+        queue: Stack(Buffer(threadsafe)),
+
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return Self{ .queue = Stack(Buffer(threadsafe)).init(), .allocator = allocator };
+        }
+
+        pub fn pop(self: *Self) Error!Buffer(threadsafe) {
+            if (self.queue.pop()) |n| {
+                return n.data;
+            }
+
+            return try Buffer(threadsafe).init(self.allocator);
+        }
+
+        pub fn push(self: *Self, data: Buffer(threadsafe)) void {
+            var n = Stack(Buffer(threadsafe)).Node{
+                .data = data,
+                .next = null,
+            };
+            self.queue.push(&n);
+        }
+    };
+}
 
 pub fn Buffer(comptime threadsafe: bool) type {
     return struct {
