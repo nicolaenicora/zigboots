@@ -5,6 +5,8 @@ const Logger = @import("logger.zig").Logger(.Simple);
 const Level = @import("logger.zig").Level;
 const Format = @import("logger.zig").Format;
 
+const Error = error{OutOfMemoryClient};
+
 const Element = struct {
     int: i32,
     string: []const u8,
@@ -40,7 +42,7 @@ pub fn main() !void {
         .Msg("Initialization...");
     @constCast(&logger.Error())
         .Attr("database", []const u8, "myapp huraaaa !")
-        .Attr("counter", i32, 34)
+        .Error(Error, Error.OutOfMemoryClient)
         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
         .Msg("Initialization...");
     @constCast(&logger.Disabled())

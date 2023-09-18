@@ -177,8 +177,8 @@ pub fn Entry(comptime format: Format) type {
             return self;
         }
 
-        pub fn Error(self: *Self, value: error{}) *Self {
-            return self.Attr("error", error{}, value);
+        pub fn Error(self: *Self, comptime V: type, value: V) *Self {
+            return self.Attr("error", V, value);
         }
 
         pub fn Msg(self: *Self, message: []const u8) void {
