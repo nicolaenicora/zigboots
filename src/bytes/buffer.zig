@@ -74,9 +74,14 @@ pub fn Buffer(comptime threadsafe: bool) type {
             var slice = try self.allocator.alloc(u8, cap);
 
             _copy(u8, slice, self.ptr[0..l]);
+            self.allocator.free(self.ptr[0..self.cap]);
 
             self.ptr = slice.ptr;
             self.cap = cap;
+        }
+
+        pub fn shrink(self: *Self) Error!void {
+            try self.resize(self.len);
         }
 
         pub fn write(self: *Self, array: []const u8) Error!usize {
@@ -157,7 +162,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             return self.copyUsingAllocator(self.allocator);
         }
 
-        pub fn copyUsingAllocator(self: *Self, allocator: std.mem.Allocator) Error![]u8 {
+        pub fn copyUsingAllocator(self: *Self, allocator: std.mem.Allocator) ![]u8 {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();

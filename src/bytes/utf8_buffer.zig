@@ -67,8 +67,16 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return buffer.cap;
         }
 
+        pub fn shrink(self: *Self) Error!void {
+            try self.buffer.shrink();
+        }
+
         pub fn bytes(self: *Self) []const u8 {
             return self.buffer.bytes();
+        }
+
+        pub fn bytesWithAllocator(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
+            return try self.buffer.copyUsingAllocator(allocator);
         }
 
         pub inline fn isEmpty(self: *Self) bool {
@@ -82,11 +90,15 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return buffer.len == 0;
         }
 
-        pub fn append(self: *Self, array: []const u8) Error!void {
-            try self.pushAt(array, self.buffer.len);
+        pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) Error!void {
+            return std.fmt.format(self.writer(), format, args);
         }
 
-        pub fn pushAt(self: *Self, array: []const u8, index: usize) Error!void {
+        pub fn append(self: *Self, array: []const u8) Error!void {
+            try self.appendAt(array, self.buffer.len);
+        }
+
+        pub fn appendAt(self: *Self, array: []const u8, index: usize) Error!void {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
@@ -210,8 +222,16 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             try self.buffer.repeat(n);
         }
 
-        pub fn removeFrom(self: *Self, index: usize) Error!void {
-            try self.removeRange(index, index + 1);
+        pub fn removeFrom(self: *Self, pos: usize) Error!void {
+            try self.removeRange(pos, self.buffer.len);
+        }
+
+        pub fn removeEnd(self: *Self, len: usize) Error!void {
+            try self.removeRange(self.buffer.len - len, self.buffer.len);
+        }
+
+        pub fn removeStart(self: *Self, len: usize) Error!void {
+            try self.removeRange(0, len);
         }
 
         pub fn removeRange(self: *Self, start: usize, end: usize) Error!void {
@@ -340,6 +360,10 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             }
 
             return null;
+        }
+
+        pub fn cloneUsingAllocator(self: *Self, allocator: std.mem.Allocator) !Self {
+            return Self{ .buffer = try self.buffer.cloneUsingAllocator(allocator) };
         }
 
         pub fn toLowercase(self: *Self) void {
@@ -501,7 +525,22 @@ test "Basic Usage" {
     assert(buffer.compare("🔥 Hello, World 🔥"));
 }
 
-test "String Tests" {
+test "Format Usage" {
+    // Use your favorite allocator
+    var arena = ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    var buffer = Utf8Buffer(true).init(arena.allocator());
+    defer buffer.deinit();
+
+    // Use functions provided
+    try buffer.appendf("🔥 Hello {s} World 🔥", .{"Ionel"});
+
+    // Success!
+    assert(buffer.compare("🔥 Hello Ionel World 🔥"));
+}
+
+test "UTF8 Buffer Tests" {
     // Allocator for the String
     const page_allocator = std.heap.page_allocator;
     var arena = std.heap.ArenaAllocator.init(page_allocator);
@@ -540,7 +579,7 @@ test "String Tests" {
     assert(eql(u8, buffer.at(0).?, "A"));
 
     // insert
-    try buffer.pushAt("🔥", 1);
+    try buffer.appendAt("🔥", 1);
     assert(eql(u8, buffer.at(1).?, "🔥"));
     assert(buffer.compare("A🔥\u{5360}💯Hell"));
 
@@ -558,7 +597,7 @@ test "String Tests" {
     const whitelist = [_]u8{ ' ', '\t', '\n', '\r' };
 
     // trimStart
-    try buffer.pushAt("      ", 0);
+    try buffer.appendAt("      ", 0);
     buffer.trimStart(whitelist[0..]);
     assert(buffer.compare("💯Hel"));
 
@@ -644,5 +683,5 @@ test "String Tests" {
         i += 1;
     }
 
-    assert(i == buffer.capacity());
+    assert(i == buffer.length());
 }
