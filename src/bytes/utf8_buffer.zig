@@ -389,6 +389,18 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return result;
         }
 
+        pub fn forEach(self: *Self, eachFn: *const fn ([]const u8) void) void {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            var iter = self.iterator();
+            while (iter.next()) |item| {
+                eachFn(item);
+            }
+        }
+
         fn utf8Position(self: *Self, index: usize, real: bool) ?usize {
             var i: usize = 0;
             var j: usize = 0;
@@ -452,7 +464,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
                 index: usize,
 
                 pub fn next(it: *Iterator) ?[]const u8 {
-                    if (it.index == it.sb.buffer.cap) return null;
+                    if (it.index >= it.sb.buffer.len) return null;
                     var i = it.index;
                     it.index += utf8Size(it.sb.buffer.ptr[i]);
                     return it.sb.buffer.ptr[i..it.index];

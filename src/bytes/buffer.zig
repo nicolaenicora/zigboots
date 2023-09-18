@@ -52,7 +52,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
 
         pub fn init(allocator: std.mem.Allocator) Self {
             return Self{
-                .ptr = @as([*]u8, @ptrFromInt(0xFFFFFFFF)),
+                .ptr = @as([*]u8, @ptrFromInt(0xFF)),
                 .allocator = allocator,
                 .cap = 0,
                 .len = 0,
