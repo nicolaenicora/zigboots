@@ -4,13 +4,13 @@ const Allocator = mem.Allocator;
 const StringHashMap = std.StringHashMap;
 
 const StringBuilder = @import("bytes/strings.zig").StringBuilder;
+const Time = @import("time/type.zig").Time;
+const Measure = @import("time/type.zig").Measure;
 
 pub const Format = enum(u4) {
     simple = 0,
     json = 1,
 };
-
-pub const Time = enum(u2) { seconds = 0x0, millis = 0x1, micros = 0x2, nanos = 0x3 };
 
 pub const Level = enum(u4) {
     Trace = 0x0,
@@ -54,7 +54,7 @@ pub const Level = enum(u4) {
     }
 };
 
-pub fn Logger(comptime format: Format, comptime timestamp: Time) type {
+pub fn Logger(comptime format: Format, comptime timemeasure: Measure) type {
     return struct {
         const Self = @This();
 
@@ -70,60 +70,60 @@ pub fn Logger(comptime format: Format, comptime timestamp: Time) type {
             return Self{ .allocator = allocator, .level = l, .writer = writer };
         }
 
-        pub fn Trace(self: Self) Entry(format, timestamp) {
+        pub fn Trace(self: Self) Entry(format, timemeasure) {
             const op = Level.Trace;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Debug(self: Self) Entry(format, timestamp) {
+        pub fn Debug(self: Self) Entry(format, timemeasure) {
             const op = Level.Debug;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Info(self: Self) Entry(format, timestamp) {
+        pub fn Info(self: Self) Entry(format, timemeasure) {
             const op = Level.Info;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Warn(self: Self) Entry(format, timestamp) {
+        pub fn Warn(self: Self) Entry(format, timemeasure) {
             const op = Level.Warn;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Error(self: Self) Entry(format, timestamp) {
+        pub fn Error(self: Self) Entry(format, timemeasure) {
             const op = Level.Error;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Fatal(self: Self) Entry(format, timestamp) {
+        pub fn Fatal(self: Self) Entry(format, timemeasure) {
             const op = Level.Fatal;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timestamp).initEmpty();
+                return Entry(format, timemeasure).initEmpty();
             }
-            return Entry(format, timestamp).init(self, op);
+            return Entry(format, timemeasure).init(self, op);
         }
-        pub fn Disabled(self: Self) Entry(format, timestamp) {
+        pub fn Disabled(self: Self) Entry(format, timemeasure) {
             _ = self;
-            return Entry(format, timestamp).initEmpty();
+            return Entry(format, timemeasure).initEmpty();
         }
     };
 }
 
-pub fn Entry(comptime format: Format, comptime timestamp: Time) type {
+pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
     return struct {
         const Self = @This();
 
-        logger: ?Logger(format, timestamp) = null,
+        logger: ?Logger(format, timemeasure) = null,
         opLevel: Level = .Disabled,
 
         elems: ?StringHashMap([]const u8) = null,
@@ -133,7 +133,7 @@ pub fn Entry(comptime format: Format, comptime timestamp: Time) type {
         }
 
         fn init(
-            logger: Logger(format, timestamp),
+            logger: Logger(format, timemeasure),
             opLevel: Level,
         ) Self {
             return Self{ .logger = logger, .opLevel = opLevel, .elems = StringHashMap([]const u8).init(logger.allocator) };
@@ -199,7 +199,7 @@ pub fn Entry(comptime format: Format, comptime timestamp: Time) type {
 
                 str.append("{") catch {};
 
-                str.appendf("\u{0022}{s}\u{0022}: \u{0022}{any}\u{0022}", .{ "timestamp", get_timestamp() }) catch {};
+                str.appendf("\u{0022}{s}\u{0022}: \u{0022}{any}\u{0022}", .{ "timestamp", Time(timemeasure).now().value }) catch {};
                 str.appendf(", \u{0022}{s}\u{0022}: \u{0022}{s}\u{0022}", .{ "level", self.opLevel.String() }) catch {};
                 if (message.len > 0) {
                     str.appendf(", \u{0022}{s}\u{0022}: \u{0022}{s}\u{0022}", .{ "message", message }) catch {};
@@ -231,7 +231,7 @@ pub fn Entry(comptime format: Format, comptime timestamp: Time) type {
                 var str = StringBuilder.init(self.logger.?.allocator);
                 defer str.deinit();
 
-                str.appendf("{any} {s}", .{ get_timestamp(), self.opLevel.String().ptr[0..4] }) catch {};
+                str.appendf("{any} {s}", .{ Time(timemeasure).now().value, self.opLevel.String().ptr[0..4] }) catch {};
                 if (message.len > 0) {
                     str.appendf(" {s}", .{message}) catch {};
                 }
@@ -259,15 +259,6 @@ pub fn Entry(comptime format: Format, comptime timestamp: Time) type {
 
         pub fn Send(self: *Self) void {
             self.Msg("");
-        }
-
-        fn get_timestamp() i128 {
-            return switch (timestamp) {
-                inline .seconds => std.time.timestamp(),
-                inline .millis => std.time.milliTimestamp(),
-                inline .micros => std.time.microTimestamp(),
-                inline .nanos => std.time.nanoTimestamp(),
-            };
         }
     };
 }
