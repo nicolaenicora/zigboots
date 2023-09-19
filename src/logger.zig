@@ -4,8 +4,8 @@ const Allocator = mem.Allocator;
 const StringHashMap = std.StringHashMap;
 
 const StringBuilder = @import("bytes/strings.zig").StringBuilder;
-const Time = @import("time/type.zig").Time;
-const Measure = @import("time/type.zig").Measure;
+const Time = @import("time.zig").Time;
+const Measure = @import("time.zig").Measure;
 
 pub const Format = enum(u4) {
     simple = 0,
