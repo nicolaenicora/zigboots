@@ -49,14 +49,20 @@ pub fn Buffer(comptime threadsafe: bool) type {
 
         cap: usize = 0,
         len: usize = 0,
+        factor: u4,
 
-        pub fn init(allocator: std.mem.Allocator) Self {
+        pub fn initWithFactor(allocator: std.mem.Allocator, factor: u4) Self {
             return Self{
                 .ptr = @as([*]u8, @ptrFromInt(0xFF)),
                 .allocator = allocator,
                 .cap = 0,
                 .len = 0,
+                .factor = if (factor <= 0) 1 else factor,
             };
+        }
+
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return initWithFactor(allocator, 1);
         }
 
         pub fn deinit(self: *Self) void {
@@ -91,7 +97,7 @@ pub fn Buffer(comptime threadsafe: bool) type {
             }
 
             if (self.len + array.len > self.cap) {
-                try self.resize((self.len + array.len) * 2);
+                try self.resize((self.len + array.len) * self.factor);
             }
 
             var i: usize = 0;

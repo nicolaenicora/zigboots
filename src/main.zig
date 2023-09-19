@@ -1,7 +1,7 @@
 const std = @import("std");
 const debug = std.debug;
 
-const Logger = @import("logger.zig").Logger(.Simple);
+const Logger = @import("logger.zig").Logger(.json, .nanos);
 const Level = @import("logger.zig").Level;
 const Format = @import("logger.zig").Format;
 
@@ -10,6 +10,7 @@ const Error = error{OutOfMemoryClient};
 const Element = struct {
     int: i32,
     string: []const u8,
+    elem: ?*const Element = null,
 };
 
 pub fn main() !void {
@@ -18,7 +19,7 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    const level = try Level.ParseString("Trace");
+    const level = try Level.ParseString("TRACE");
     const logger = Logger.init(arena.allocator(), level);
     @constCast(&logger.Trace())
         .Attr("database", []const u8, "myapp huraaaa !")

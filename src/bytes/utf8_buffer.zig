@@ -45,6 +45,10 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return Self{ .buffer = Buffer(threadsafe).init(allocator) };
         }
 
+        pub fn initWithFactor(allocator: std.mem.Allocator, factor: u4) Self {
+            return Self{ .buffer = Buffer(threadsafe).initWithFactor(allocator, factor) };
+        }
+
         pub fn deinit(self: *Self) void {
             self.buffer.deinit();
         }
@@ -106,7 +110,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
 
             // Make sure buffer has enough space
             if (self.buffer.len + array.len > self.buffer.cap) {
-                try self.buffer.resize((self.buffer.len + array.len) * 2);
+                try self.buffer.resize((self.buffer.len + array.len) * self.buffer.factor);
             }
 
             // If the index is >= len, then simply push to the end.
