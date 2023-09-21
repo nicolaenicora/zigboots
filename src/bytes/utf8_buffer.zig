@@ -53,56 +53,11 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             self.buffer.deinit();
         }
 
-        pub fn copy(self: *Self) Error!?[]u8 {
-            return try self.buffer.copy();
-        }
-
-        pub fn clear(self: *Self) void {
-            self.buffer.clear();
-        }
-        pub fn capacity(self: *Self) usize {
-            const buffer = self.buffer;
-
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            return buffer.cap;
-        }
-
-        pub fn shrink(self: *Self) Error!void {
-            try self.buffer.shrink();
-        }
-
-        pub fn bytes(self: *Self) []const u8 {
-            return self.buffer.bytes();
-        }
-
-        pub fn bytesWithAllocator(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
-            return try self.buffer.copyUsingAllocator(allocator);
-        }
-
-        pub inline fn isEmpty(self: *Self) bool {
-            const buffer = self.buffer;
-
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            return buffer.len == 0;
-        }
-
-        pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) Error!void {
-            return std.fmt.format(self.writer(), format, args);
-        }
-
         pub fn append(self: *Self, array: []const u8) Error!void {
-            try self.appendAt(array, self.buffer.len);
+            try self.insertAt(array, self.buffer.len);
         }
 
-        pub fn appendAt(self: *Self, array: []const u8, index: usize) Error!void {
+        pub fn insertAt(self: *Self, array: []const u8, index: usize) Error!void {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
@@ -142,88 +97,101 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             @atomicStore(usize, &self.buffer.len, self.buffer.len + array.len, .Monotonic);
         }
 
-        pub fn pop(self: *Self) ?[]const u8 {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            if (self.buffer.len == 0) return null;
-
-            var i: usize = 0;
-            while (i < self.buffer.len) {
-                const size = utf8Size(self.buffer.ptr[i]);
-                if (i + size >= self.buffer.len) break;
-                i += size;
-            }
-
-            const ret = self.buffer.ptr[i..self.buffer.len];
-            self.buffer.len -= (self.buffer.len - i);
-            return ret;
-        }
-
-        pub fn at(self: *Self, index: usize) ?[]const u8 {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            if (self.utf8Position(index, true)) |i| {
-                const size = utf8Size(self.buffer.ptr[i]);
-                return self.buffer.ptr[i..(i + size)];
-            }
-            return null;
-        }
-
-        pub fn rawLength(self: *Self) usize {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            return self.buffer.len;
-        }
-
-        pub fn length(self: *Self) usize {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            var l: usize = 0;
-            var i: usize = 0;
-
-            while (i < self.buffer.len) {
-                i += utf8Size(self.buffer.ptr[i]);
-                l += 1;
-            }
-
-            return l;
-        }
-
-        pub fn find(self: *Self, array: []const u8) ?usize {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            const index = std.mem.indexOf(u8, self.buffer.ptr[0..self.buffer.len], array);
-            if (index) |i| {
-                return self.utf8Position(i, false);
-            }
-            return null;
-        }
-
-        pub fn compare(self: *Self, array: []const u8) bool {
-            return self.buffer.compare(array);
-        }
-
-        pub fn clone(self: *Self) Error!Self {
-            return Self{ .buffer = try self.buffer.clone() };
+        pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) Error!void {
+            return std.fmt.format(self.writer(), format, args);
         }
 
         pub fn repeat(self: *Self, n: usize) Error!void {
             try self.buffer.repeat(n);
+        }
+
+        const Direction = enum(u1) {
+            first = 0,
+            last,
+        };
+
+        fn replace(self: *Self, comptime direction: Direction, src: []const u8, dst: []const u8) !bool {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            const indexOfFn = comptime switch (direction) {
+                inline .first => std.mem.indexOf,
+                inline .last => std.mem.lastIndexOfLinear,
+            };
+
+            if (indexOfFn(u8, self.buffer.ptr[0..self.buffer.len], src)) |index| {
+                if (dst.len > src.len) {
+                    // Make sure buffer has enough space
+                    const size = self.buffer.len + (dst.len - src.len);
+                    if (size > self.buffer.cap) {
+                        try self.buffer.resize(size);
+                    }
+
+                    // Move existing contents over, as expanding
+                    for (0..(dst.len - src.len)) |_| {
+                        var i: usize = self.buffer.len;
+                        while (i >= (index + src.len)) : (i -= 1) {
+                            self.buffer.ptr[i] = self.buffer.ptr[i - 1];
+                        }
+                        @atomicStore(usize, &self.buffer.len, self.buffer.len + 1, .Monotonic);
+                    }
+                } else if (dst.len < src.len) {
+                    // Move existing contents over, as shriking
+                    const diff = src.len - dst.len;
+
+                    var i: usize = index + dst.len;
+                    while (i < self.buffer.len) : (i += 1) {
+                        self.buffer.ptr[i] = self.buffer.ptr[i + diff];
+                    }
+
+                    @atomicStore(usize, &self.buffer.len, self.buffer.len - diff, .Monotonic);
+                }
+                var i: usize = 0;
+                while (i < dst.len) : (i += 1) {
+                    self.buffer.ptr[index + i] = dst.ptr[i];
+                }
+                return true;
+            }
+            return false;
+        }
+
+        pub fn replaceLast(self: *Self, src: []const u8, dst: []const u8) !bool {
+            return self.replace(.last, src, dst);
+        }
+
+        pub fn replaceFirst(self: *Self, src: []const u8, dst: []const u8) !bool {
+            return self.replace(.first, src, dst);
+        }
+
+        pub fn replaceAll(self: *Self, src: []const u8, dst: []const u8) !bool {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            var found = false;
+            while (true) {
+                if (!try self.replaceFirst(src, dst)) {
+                    return found;
+                } else {
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        pub fn removeLast(self: *Self, src: []const u8) !bool {
+            return self.replace(.last, src, "");
+        }
+
+        pub fn removeFirst(self: *Self, src: []const u8) !bool {
+            return self.replace(.first, src, "");
+        }
+
+        pub fn removeAll(self: *Self, src: []const u8) !bool {
+            return self.replaceAll(src, "");
         }
 
         pub fn removeFrom(self: *Self, pos: usize) Error!void {
@@ -256,6 +224,41 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             }
 
             self.buffer.len -= difference;
+        }
+
+        pub fn reverse(self: *Self) void {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            var i: usize = 0;
+            while (i < self.buffer.len) {
+                const size = utf8Size(self.buffer.ptr[i]);
+                if (size > 1) std.mem.reverse(u8, self.buffer.ptr[i..(i + size)]);
+                i += size;
+            }
+
+            std.mem.reverse(u8, self.buffer.ptr[0..self.buffer.len]);
+        }
+
+        pub fn substract(self: *Self, start: usize, end: usize) Error!Self {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            var result = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
+
+            if (self.utf8Position(start, true)) |rStart| {
+                if (self.utf8Position(end, true)) |rEnd| {
+                    if (rEnd < rStart or rEnd > self.buffer.len)
+                        return Error.InvalidRange;
+                    try result.append(self.buffer.ptr[rStart..rEnd]);
+                }
+            }
+
+            return result;
         }
 
         pub fn trimStart(self: *Self, cut: []const u8) void {
@@ -305,22 +308,6 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             self.trimEnd(cut);
         }
 
-        pub fn reverse(self: *Self) void {
-            if (threadsafe) {
-                self.buffer.mu.lock();
-                defer self.buffer.mu.unlock();
-            }
-
-            var i: usize = 0;
-            while (i < self.buffer.len) {
-                const size = utf8Size(self.buffer.ptr[i]);
-                if (size > 1) std.mem.reverse(u8, self.buffer.ptr[i..(i + size)]);
-                i += size;
-            }
-
-            std.mem.reverse(u8, self.buffer.ptr[0..self.buffer.len]);
-        }
-
         pub fn split(self: *Self, delimiters: []const u8, index: usize) ?[]const u8 {
             var i: usize = 0;
             var block: usize = 0;
@@ -366,10 +353,6 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return null;
         }
 
-        pub fn cloneUsingAllocator(self: *Self, allocator: std.mem.Allocator) !Self {
-            return Self{ .buffer = try self.buffer.cloneUsingAllocator(allocator) };
-        }
-
         pub fn toLowercase(self: *Self) void {
             if (threadsafe) {
                 self.buffer.mu.lock();
@@ -398,23 +381,45 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             }
         }
 
-        pub fn substract(self: *Self, start: usize, end: usize) Error!Self {
+        pub fn clear(self: *Self) void {
+            self.buffer.clear();
+        }
+
+        pub fn shrink(self: *Self) Error!void {
+            try self.buffer.shrink();
+        }
+
+        pub fn pop(self: *Self) ?[]const u8 {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
             }
 
-            var result = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
+            if (self.buffer.len == 0) return null;
 
-            if (self.utf8Position(start, true)) |rStart| {
-                if (self.utf8Position(end, true)) |rEnd| {
-                    if (rEnd < rStart or rEnd > self.buffer.len)
-                        return Error.InvalidRange;
-                    try result.append(self.buffer.ptr[rStart..rEnd]);
-                }
+            var i: usize = 0;
+            while (i < self.buffer.len) {
+                const size = utf8Size(self.buffer.ptr[i]);
+                if (i + size >= self.buffer.len) break;
+                i += size;
             }
 
-            return result;
+            const ret = self.buffer.ptr[i..self.buffer.len];
+            self.buffer.len -= (self.buffer.len - i);
+            return ret;
+        }
+
+        pub fn runeAt(self: *Self, index: usize) ?[]const u8 {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            if (self.utf8Position(index, true)) |i| {
+                const size = utf8Size(self.buffer.ptr[i]);
+                return self.buffer.ptr[i..(i + size)];
+            }
+            return null;
         }
 
         pub fn forEach(self: *Self, eachFn: *const fn ([]const u8) void) void {
@@ -427,6 +432,102 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             while (iter.next()) |item| {
                 eachFn(item);
             }
+        }
+
+        pub fn find(self: *Self, array: []const u8) ?usize {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            const index = std.mem.indexOf(u8, self.buffer.ptr[0..self.buffer.len], array);
+            if (index) |i| {
+                return self.utf8Position(i, false);
+            }
+            return null;
+        }
+
+        pub fn contains(self: *Self, array: []const u8) bool {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+            if (self.find(array)) |_| {
+                return true;
+            }
+            return false;
+        }
+
+        pub fn compare(self: *Self, array: []const u8) bool {
+            return self.buffer.compare(array);
+        }
+
+        pub fn cloneUsingAllocator(self: *Self, allocator: std.mem.Allocator) !Self {
+            return Self{ .buffer = try self.buffer.cloneUsingAllocator(allocator) };
+        }
+
+        pub fn clone(self: *Self) Error!Self {
+            return Self{ .buffer = try self.buffer.clone() };
+        }
+
+        pub fn copy(self: *Self) Error!?[]u8 {
+            return try self.buffer.copy();
+        }
+
+        pub fn bytes(self: *Self) []const u8 {
+            return self.buffer.bytes();
+        }
+
+        pub fn bytesWithAllocator(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
+            return try self.buffer.copyUsingAllocator(allocator);
+        }
+
+        pub fn capacity(self: *Self) usize {
+            const buffer = self.buffer;
+
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            return buffer.cap;
+        }
+
+        pub inline fn isEmpty(self: *Self) bool {
+            const buffer = self.buffer;
+
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            return buffer.len == 0;
+        }
+
+        pub fn rawLength(self: *Self) usize {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            return self.buffer.len;
+        }
+
+        pub fn length(self: *Self) usize {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            var l: usize = 0;
+            var i: usize = 0;
+
+            while (i < self.buffer.len) {
+                i += utf8Size(self.buffer.ptr[i]);
+                l += 1;
+            }
+
+            return l;
         }
 
         fn utf8Position(self: *Self, index: usize, real: bool) ?usize {
@@ -578,13 +679,13 @@ test "UTF8 Buffer Tests" {
     assert(buffer.compare(buffer.bytes()));
 
     // charAt
-    assert(eql(u8, buffer.at(2).?, "💯"));
-    assert(eql(u8, buffer.at(1).?, "\u{5360}"));
-    assert(eql(u8, buffer.at(0).?, "A"));
+    assert(eql(u8, buffer.runeAt(2).?, "💯"));
+    assert(eql(u8, buffer.runeAt(1).?, "\u{5360}"));
+    assert(eql(u8, buffer.runeAt(0).?, "A"));
 
     // insert
-    try buffer.appendAt("🔥", 1);
-    assert(eql(u8, buffer.at(1).?, "🔥"));
+    try buffer.insertAt("🔥", 1);
+    assert(eql(u8, buffer.runeAt(1).?, "🔥"));
     assert(buffer.compare("A🔥\u{5360}💯Hell"));
 
     // find
@@ -601,7 +702,7 @@ test "UTF8 Buffer Tests" {
     const whitelist = [_]u8{ ' ', '\t', '\n', '\r' };
 
     // trimStart
-    try buffer.appendAt("      ", 0);
+    try buffer.insertAt("      ", 0);
     buffer.trimStart(whitelist[0..]);
     assert(buffer.compare("💯Hel"));
 

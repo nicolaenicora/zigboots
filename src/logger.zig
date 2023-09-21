@@ -162,7 +162,7 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
                 if (str.find(" ")) |_| {
                     switch (format) {
                         inline .simple => {
-                            str.appendAt("\u{0022}", 0) catch {};
+                            str.insertAt("\u{0022}", 0) catch {};
                             str.append("\u{0022}") catch {};
                         },
                         inline .json => {},

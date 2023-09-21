@@ -1,9 +1,11 @@
 const std = @import("std");
 const debug = std.debug;
+const StringBuilder = @import("bytes/strings.zig").StringBuilder;
 
 const Logger = @import("logger.zig").Logger(.json, .nanos);
 const Level = @import("logger.zig").Level;
 const Format = @import("logger.zig").Format;
+const Time = @import("time.zig").Time;
 
 const Error = error{OutOfMemoryClient};
 
@@ -15,6 +17,10 @@ const Element = struct {
 
 pub fn main() !void {
     std.debug.print("Starting application.\n", .{});
+
+    const t = Time(.seconds).now();
+    const d = t.format("");
+    std.debug.print("{any}\n", .{d});
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();

@@ -92,14 +92,26 @@ pub fn Pool(comptime T: type) type {
 //     try sb.append("\u{5360}");
 //     try sb.append("💯");
 //     try sb.append("Hell");
-
-//     try sb.appendf("🔥 Hello {s} World 🔥", .{"Ionel"});
-
-//     try sb.pushAt("🔥", 8);
 //     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
 
-//     sb.forEach(PrintElement);
-//     std.debug.print("\n", .{});
+//     try sb.appendf("🔥 Hello {s} World 🔥", .{"Ionel"});
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+
+//     _ = try sb.replaceFirst("💯", "+++++💯+++++");
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+//     _ = try sb.replaceFirst("+++++💯+++++", "💯");
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+//     _ = try sb.replaceFirst("💯", "");
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+
+//     try sb.insertAt("🔥", 1);
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+
+//     _ = try sb.replaceLast("🔥", "§");
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
+
+//     _ = try sb.removeAll("🔥");
+//     std.debug.print("[{s}] --- from {any}\n", .{ sb.bytes(), @intFromPtr(&sb) });
 
 //     try utf8BufferPool.push(&sb);
 
