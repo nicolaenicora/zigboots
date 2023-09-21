@@ -19,8 +19,8 @@ pub fn main() !void {
     std.debug.print("Starting application.\n", .{});
 
     const t = Time(.seconds).now();
-    const d = t.format("");
-    std.debug.print("{any}\n", .{d});
+
+    try std.fmt.format(std.io.getStdOut().writer(), "{any}\n", .{t.format()});
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();

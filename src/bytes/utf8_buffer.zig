@@ -49,6 +49,12 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return Self{ .buffer = Buffer(threadsafe).initWithFactor(allocator, factor) };
         }
 
+        pub fn initWithCapacity(allocator: std.mem.Allocator, size: usize) !Self {
+            var d = init(allocator);
+            try d.buffer.resize(size);
+            return d;
+        }
+
         pub fn deinit(self: *Self) void {
             self.buffer.deinit();
         }

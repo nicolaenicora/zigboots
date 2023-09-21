@@ -192,11 +192,71 @@ pub fn Time(comptime measure: Measure) type {
             return self;
         }
 
+        // format returns a date string
+        fn custom_format(self: Self, pattern: []const u8, dst: []const u8) !void {
+            var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+            defer arena.deinit();
+
+            var tokens = std.fifo.LinearFifo([]const u8, .Dynamic).init(arena.allocator());
+            defer tokens.deinit();
+
+            var i: usize = 0;
+            while (i < pattern.len) {
+                var j: usize = 4;
+                while (j > 0) : (j -= 1) {
+                    if (i > pattern.len - j) {
+                        continue;
+                    }
+
+                    const slice = pattern.ptr[i .. i + j];
+                    if (j == 1 or (j == 2 and in2(slice)) or (j == 3 and in3(slice)) or (j == 4 and in4(slice))) {
+                        const token = pattern.ptr[i .. i + j];
+                        try tokens.writeItem(token);
+                        i += (j - 1);
+                        break;
+                    }
+                }
+                i += 1;
+            }
+
+            var sb = try strings.StringBuilder.initWithCapacity(arena.allocator(), pattern.len);
+            defer sb.deinit();
+
+            while (tokens.readItem()) |token| {
+                if (std.mem.eql(u8, token, "YYYY")) {
+                    try sb.appendf("{d}", .{self.year});
+                } else if (std.mem.eql(u8, token, "MM")) {
+                    if (self.month < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.month});
+                } else if (std.mem.eql(u8, token, "DD")) {
+                    if (self.day < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.day});
+                } else if (std.mem.eql(u8, token, "HH")) {
+                    if (self.hour < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.hour});
+                } else if (std.mem.eql(u8, token, "mm")) {
+                    if (self.min < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.min});
+                } else {
+                    try sb.append(token);
+                }
+            }
+            std.mem.copyBackwards(u8, @constCast(dst), sb.bytes());
+        }
+
         // format returns a date string in "YYYY-MM-DD HH:mm" format (24h).
-        pub fn format(self: Self, pattern: []const u8) ![]const u8 {
-            _ = pattern;
+        pub fn format(self: Self) ![]u8 {
             var buffer: [16]u8 = undefined;
-            return std.fmt.bufPrint(buffer[0..], "{}-{}-{} {}:{}", .{ self.year, self.month, self.day, self.hour, self.min });
+            try self.custom_format("YYYY-MM-DD HH:mm", &buffer);
+            return &buffer;
         }
 
         // // format_ss returns a date string in "YYYY-MM-DD HH:mm:ss" format (24h).
@@ -282,6 +342,35 @@ const daysBefore = [13]u32{
     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 };
+
+const tokens_2 = [16][]const u8{ "MM", "DD", "Do", "YY", "ss", "kk", "NN", "mm", "hh", "HH", "ZZ", "dd", "Qo", "QQ", "wo", "ww" };
+const tokens_3 = [4][]const u8{ "MMM", "DDD", "ZZZ", "ddd" };
+const tokens_4 = [5][]const u8{ "MMMM", "DDDD", "DDDo", "dddd", "YYYY" };
+
+fn in2(elem: []const u8) bool {
+    for (tokens_2) |item| {
+        if (std.mem.eql(u8, item, elem)) {
+            return true;
+        }
+    }
+    return false;
+}
+fn in3(elem: []const u8) bool {
+    for (tokens_3) |item| {
+        if (std.mem.eql(u8, item, elem)) {
+            return true;
+        }
+    }
+    return false;
+}
+fn in4(elem: []const u8) bool {
+    for (tokens_4) |item| {
+        if (std.mem.eql(u8, item, elem)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 test "format - YYYY-MM-DD HH:mm" {
     const t = Time(.seconds).now();
