@@ -54,7 +54,7 @@ pub const Level = enum(u4) {
     }
 };
 
-pub fn Logger(comptime format: Format, comptime timemeasure: Measure) type {
+pub fn Logger(comptime format: Format, comptime timemeasure: Measure, comptime pattern: []const u8) type {
     return struct {
         const Self = @This();
 
@@ -70,60 +70,60 @@ pub fn Logger(comptime format: Format, comptime timemeasure: Measure) type {
             return Self{ .allocator = allocator, .level = l, .writer = writer };
         }
 
-        pub fn Trace(self: Self) Entry(format, timemeasure) {
+        pub fn Trace(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Trace;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Debug(self: Self) Entry(format, timemeasure) {
+        pub fn Debug(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Debug;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Info(self: Self) Entry(format, timemeasure) {
+        pub fn Info(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Info;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Warn(self: Self) Entry(format, timemeasure) {
+        pub fn Warn(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Warn;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Error(self: Self) Entry(format, timemeasure) {
+        pub fn Error(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Error;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Fatal(self: Self) Entry(format, timemeasure) {
+        pub fn Fatal(self: Self) Entry(format, timemeasure, pattern) {
             const op = Level.Fatal;
             if (@intFromEnum(self.level) > @intFromEnum(op)) {
-                return Entry(format, timemeasure).initEmpty();
+                return Entry(format, timemeasure, pattern).initEmpty();
             }
-            return Entry(format, timemeasure).init(self, op);
+            return Entry(format, timemeasure, pattern).init(self, op);
         }
-        pub fn Disabled(self: Self) Entry(format, timemeasure) {
+        pub fn Disabled(self: Self) Entry(format, timemeasure, pattern) {
             _ = self;
-            return Entry(format, timemeasure).initEmpty();
+            return Entry(format, timemeasure, pattern).initEmpty();
         }
     };
 }
 
-pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
+pub fn Entry(comptime format: Format, comptime timemeasure: Measure, comptime pattern: []const u8) type {
     return struct {
         const Self = @This();
 
-        logger: ?Logger(format, timemeasure) = null,
+        logger: ?Logger(format, timemeasure, pattern) = null,
         opLevel: Level = .Disabled,
 
         elems: ?StringHashMap([]const u8) = null,
@@ -133,7 +133,7 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
         }
 
         fn init(
-            logger: Logger(format, timemeasure),
+            logger: Logger(format, timemeasure, pattern),
             opLevel: Level,
         ) Self {
             return Self{ .logger = logger, .opLevel = opLevel, .elems = StringHashMap([]const u8).init(logger.allocator) };
@@ -199,7 +199,11 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
 
                 str.append("{") catch {};
 
-                str.appendf("\u{0022}{s}\u{0022}: \u{0022}{any}\u{0022}", .{ "timestamp", Time(timemeasure).now().value }) catch {};
+                const t = Time(timemeasure).now();
+
+                var buffer: [512]u8 = undefined;
+                const len = t.format(pattern, buffer[0..]) catch pattern.len;
+                str.appendf("\u{0022}{s}\u{0022}: \u{0022}{s}\u{0022}", .{ "timestamp", buffer[0..len] }) catch {};
                 str.appendf(", \u{0022}{s}\u{0022}: \u{0022}{s}\u{0022}", .{ "level", self.opLevel.String() }) catch {};
                 if (message.len > 0) {
                     str.appendf(", \u{0022}{s}\u{0022}: \u{0022}{s}\u{0022}", .{ "message", message }) catch {};
@@ -231,7 +235,11 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure) type {
                 var str = StringBuilder.init(self.logger.?.allocator);
                 defer str.deinit();
 
-                str.appendf("{any} {s}", .{ Time(timemeasure).now().value, self.opLevel.String().ptr[0..4] }) catch {};
+                const t = Time(timemeasure).now();
+
+                var buffer: [512]u8 = undefined;
+                const len = t.format(pattern, buffer[0..]) catch pattern.len;
+                str.appendf("{s} {s}", .{ buffer[0..len], self.opLevel.String().ptr[0..4] }) catch {};
                 if (message.len > 0) {
                     str.appendf(" {s}", .{message}) catch {};
                 }

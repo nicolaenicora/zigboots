@@ -2,7 +2,7 @@ const std = @import("std");
 const debug = std.debug;
 const StringBuilder = @import("bytes/strings.zig").StringBuilder;
 
-const Logger = @import("logger.zig").Logger(.json, .nanos);
+const Logger = @import("logger.zig").Logger(.json, .nanos, "YYYY/MM/DD hh:mm:ss.SSS a");
 const Level = @import("logger.zig").Level;
 const Format = @import("logger.zig").Format;
 const Time = @import("time.zig").Time;
@@ -17,10 +17,6 @@ const Element = struct {
 
 pub fn main() !void {
     std.debug.print("Starting application.\n", .{});
-
-    const t = Time(.seconds).now();
-
-    try std.fmt.format(std.io.getStdOut().writer(), "{any}\n", .{t.format()});
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();

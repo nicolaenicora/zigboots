@@ -59,26 +59,36 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             self.buffer.deinit();
         }
 
+        pub fn appendN(self: *Self, array: []const u8, numOfChars: usize) Error!void {
+            try self.insertAtWithLength(self.buffer.len, array, numOfChars);
+        }
+
         pub fn append(self: *Self, array: []const u8) Error!void {
-            try self.insertAt(array, self.buffer.len);
+            try self.insertAtWithLength(self.buffer.len, array, array.len);
         }
 
         pub fn insertAt(self: *Self, array: []const u8, index: usize) Error!void {
+            try self.insertAtWithLength(index, array, array.len);
+        }
+
+        fn insertAtWithLength(self: *Self, index: usize, array: []const u8, len: usize) Error!void {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
             }
 
+            const numberOfChars = if (len > array.len) array.len else len;
+
             // Make sure buffer has enough space
-            if (self.buffer.len + array.len > self.buffer.cap) {
-                try self.buffer.resize((self.buffer.len + array.len) * self.buffer.factor);
+            if (self.buffer.len + numberOfChars > self.buffer.cap) {
+                try self.buffer.resize((self.buffer.len + numberOfChars) * self.buffer.factor);
             }
 
             // If the index is >= len, then simply push to the end.
             // If not, then copy contents over and insert the given array.
             if (index == self.buffer.len) {
                 var i: usize = 0;
-                while (i < array.len) : (i += 1) {
+                while (i < numberOfChars) : (i += 1) {
                     self.buffer.ptr[self.buffer.len + i] = array[i];
                 }
             } else {
@@ -86,21 +96,21 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
                     // Move existing contents over
                     var i: usize = self.buffer.len - 1;
                     while (i >= k) : (i -= 1) {
-                        if (i + array.len < self.buffer.cap) {
-                            self.buffer.ptr[i + array.len] = self.buffer.ptr[i];
+                        if (i + numberOfChars < self.buffer.cap) {
+                            self.buffer.ptr[i + numberOfChars] = self.buffer.ptr[i];
                         }
 
                         if (i == 0) break;
                     }
 
                     i = 0;
-                    while (i < array.len) : (i += 1) {
+                    while (i < numberOfChars) : (i += 1) {
                         self.buffer.ptr[index + i] = array[i];
                     }
                 }
             }
 
-            @atomicStore(usize, &self.buffer.len, self.buffer.len + array.len, .Monotonic);
+            @atomicStore(usize, &self.buffer.len, self.buffer.len + numberOfChars, .Monotonic);
         }
 
         pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) Error!void {

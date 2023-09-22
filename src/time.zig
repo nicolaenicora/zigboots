@@ -1,7 +1,7 @@
 const std = @import("std");
 const strings = @import("bytes/strings.zig");
 
-pub const Measure = enum(u2) { seconds = 0, millis, micros, nanos };
+pub const Measure = enum(u4) { seconds = 0, millis = 1, micros = 2, nanos = 3 };
 
 pub const Month = enum(u4) {
     January = 1,
@@ -16,15 +16,85 @@ pub const Month = enum(u4) {
     October,
     November,
     December,
+
+    pub fn string(self: Month) []const u8 {
+        return switch (self) {
+            .January => "January",
+            .February => "February",
+            .March => "March",
+            .April => "April",
+            .May => "May",
+            .June => "June",
+            .July => "July",
+            .August => "August",
+            .September => "September",
+            .October => "October",
+            .November => "November",
+            .December => "December",
+        };
+    }
+
+    pub fn shortString(self: Month) []const u8 {
+        return switch (self) {
+            .January => "Jan",
+            .February => "Feb",
+            .March => "Mar",
+            .April => "Apr",
+            .May => "May",
+            .June => "Jun",
+            .July => "Jul",
+            .August => "Aug",
+            .September => "Sep",
+            .October => "Oct",
+            .November => "Nov",
+            .December => "Dec",
+        };
+    }
 };
 pub const Weekday = enum(u3) {
-    Sunday = 0,
-    Monday,
+    Monday = 1,
     Tuesday,
     Wednesday,
     Thursday,
     Friday,
     Saturday,
+    Sunday,
+
+    pub fn string(self: Weekday) []const u8 {
+        return switch (self) {
+            .Sunday => "Sunday",
+            .Monday => "Monday",
+            .Tuesday => "Tuesday",
+            .Wednesday => "Wednesday",
+            .Thursday => "Thursday",
+            .Friday => "Friday",
+            .Saturday => "Saturday",
+        };
+    }
+
+    pub fn shortString(self: Weekday) []const u8 {
+        return switch (self) {
+            .Sunday => "Sun",
+            .Monday => "Mon",
+            .Tuesday => "Tue",
+            .Wednesday => "Wed",
+            .Thursday => "Thu",
+            .Friday => "Fri",
+            .Saturday => "Sat",
+        };
+    }
+
+    pub fn shorterString(self: Weekday) []const u8 {
+        return switch (self) {
+            .Sunday => "Su",
+            .Monday => "Mo",
+            .Tuesday => "Tu",
+            .Wednesday => "We",
+            .Thursday => "Th",
+            .Friday => "Fr",
+            .Saturday => "Sa",
+        };
+    }
 };
 
 pub fn now() Time {
@@ -52,14 +122,16 @@ pub fn Time(comptime measure: Measure) type {
 
         year: u16 = 0,
         month: u16 = 0,
+        yday: u16 = 0,
+        wday: u16 = 0,
         day: u16 = 0,
         hour: u16 = 0,
         min: u16 = 0,
         sec: u16 = 0,
 
         milli: u16 = 0,
-        micro: u32 = 0,
-        nano: u32 = 0,
+        micro: u16 = 0,
+        nano: u16 = 0,
 
         pub fn now() Self {
             const t = @constCast(&Self{ .value = switch (measure) {
@@ -81,22 +153,25 @@ pub fn Time(comptime measure: Measure) type {
                     break :blk @divTrunc(self.value, std.time.ms_per_s);
                 },
                 inline .micros => blk: {
-                    const micro = @rem(self.value, std.time.us_per_s);
-                    @atomicStore(u32, @constCast(&self.micro), @as(u32, @intCast(micro)), .Monotonic);
+                    const micro = @rem(self.value, std.time.ns_per_us);
+                    @atomicStore(u16, @constCast(&self.micro), @as(u16, @intCast(micro)), .Monotonic);
 
-                    const milli = @divTrunc(micro, std.time.ms_per_s);
+                    var milli = @rem(self.value, std.time.us_per_s);
+                    milli = @divTrunc(milli, std.time.ns_per_us);
                     @atomicStore(u16, @constCast(&self.milli), @as(u16, @intCast(milli)), .Monotonic);
 
                     break :blk @divTrunc(self.value, std.time.us_per_s);
                 },
                 inline .nanos => blk: {
-                    const nano = @rem(self.value, std.time.ns_per_s);
-                    @atomicStore(u32, @constCast(&self.nano), @as(u32, @intCast(nano)), .Monotonic);
+                    const nano = @rem(self.value, std.time.ns_per_us);
+                    @atomicStore(u16, @constCast(&self.nano), @as(u16, @intCast(nano)), .Monotonic);
 
-                    const micro = @divTrunc(nano, std.time.ms_per_s);
-                    @atomicStore(u32, @constCast(&self.micro), @as(u32, @intCast(micro)), .Monotonic);
+                    var micro = @rem(self.value, std.time.ns_per_ms);
+                    micro = @divTrunc(micro, std.time.ns_per_us);
+                    @atomicStore(u16, @constCast(&self.micro), @as(u16, @intCast(micro)), .Monotonic);
 
-                    const milli = @divTrunc(micro, std.time.ms_per_s);
+                    var milli = @rem(self.value, std.time.ns_per_s);
+                    milli = @divTrunc(milli, std.time.ns_per_ms);
                     @atomicStore(u16, @constCast(&self.milli), @as(u16, @intCast(milli)), .Monotonic);
 
                     break :blk @divTrunc(self.value, std.time.ns_per_s);
@@ -145,6 +220,7 @@ pub fn Time(comptime measure: Measure) type {
             var year = y + absolute_zero_year;
 
             var day = d;
+
             // Estimate month on assumption that every month has 31 days.
             // The estimate may be too low by at most one month, so adjust.
             var month = @divFloor(day, 31);
@@ -161,6 +237,8 @@ pub fn Time(comptime measure: Measure) type {
 
                     @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
                     @atomicStore(u16, @constCast(&self.month), @as(u16, @intCast(month)), .Monotonic);
+                    @atomicStore(u16, @constCast(&self.yday), @as(u16, @intCast(d)), .Monotonic);
+                    @atomicStore(u16, @constCast(&self.wday), @as(u16, @intCast(weekday(year, month, day))), .Monotonic);
                     @atomicStore(u16, @constCast(&self.day), @as(u16, @intCast(day)), .Monotonic);
                     @atomicStore(u16, @constCast(&self.hour), @as(u16, @intCast(hour)), .Monotonic);
                     @atomicStore(u16, @constCast(&self.min), @as(u16, @intCast(min)), .Monotonic);
@@ -185,6 +263,8 @@ pub fn Time(comptime measure: Measure) type {
             @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
             @atomicStore(u16, @constCast(&self.month), @as(u16, @intCast(month)), .Monotonic);
             @atomicStore(u16, @constCast(&self.day), @as(u16, @intCast(day)), .Monotonic);
+            @atomicStore(u16, @constCast(&self.yday), @as(u16, @intCast(d)), .Monotonic);
+            @atomicStore(u16, @constCast(&self.wday), @as(u16, @intCast(weekday(year, month, day))), .Monotonic);
             @atomicStore(u16, @constCast(&self.hour), @as(u16, @intCast(hour)), .Monotonic);
             @atomicStore(u16, @constCast(&self.min), @as(u16, @intCast(min)), .Monotonic);
             @atomicStore(u16, @constCast(&self.sec), @as(u16, @intCast(sec)), .Monotonic);
@@ -193,7 +273,7 @@ pub fn Time(comptime measure: Measure) type {
         }
 
         // format returns a date string
-        fn custom_format(self: Self, pattern: []const u8, dst: []const u8) !void {
+        pub fn format(self: Self, pattern: []const u8, dst: []const u8) !usize {
             var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
             defer arena.deinit();
 
@@ -230,87 +310,136 @@ pub fn Time(comptime measure: Measure) type {
                         try sb.append("0");
                     }
                     try sb.appendf("{d}", .{self.month});
+                } else if (std.mem.eql(u8, token, "MMMM")) {
+                    const m = @as(Month, @enumFromInt(self.month));
+                    try sb.appendf("{s}", .{m.string()});
+                } else if (std.mem.eql(u8, token, "MMM")) {
+                    const m = @as(Month, @enumFromInt(self.month));
+                    try sb.appendf("{s}", .{m.shortString()});
+                } else if (std.mem.eql(u8, token, "Mo")) {
+                    if (self.month == 1) {
+                        try sb.appendf("{d}st", .{self.month});
+                    } else if (self.month == 2) {
+                        try sb.appendf("{d}nd", .{self.month});
+                    } else if (self.month == 3) {
+                        try sb.appendf("{d}rd", .{self.month});
+                    } else {
+                        try sb.appendf("{d}th", .{self.month});
+                    }
                 } else if (std.mem.eql(u8, token, "DD")) {
                     if (self.day < 10) {
                         try sb.append("0");
                     }
                     try sb.appendf("{d}", .{self.day});
+                } else if (std.mem.eql(u8, token, "DDDD")) {
+                    try sb.appendf("{d}", .{self.yday});
+                } else if (std.mem.eql(u8, token, "DDDo")) {
+                    try sb.appendf("{d}", .{self.yday});
+                    const rem = @rem(self.yday, daysBefore[self.month]);
+                    if (rem == 1) {
+                        try sb.append("st");
+                    } else if (rem == 2) {
+                        try sb.append("nd");
+                    } else if (rem == 3) {
+                        try sb.append("rd");
+                    } else {
+                        try sb.append("th");
+                    }
+                } else if (std.mem.eql(u8, token, "Do")) {
+                    try sb.appendf("{d}", .{self.day});
+                    const rem = @rem(self.day, 30);
+                    if (rem == 1) {
+                        try sb.append("st");
+                    } else if (rem == 2) {
+                        try sb.append("nd");
+                    } else if (rem == 3) {
+                        try sb.append("rd");
+                    } else {
+                        try sb.append("th");
+                    }
                 } else if (std.mem.eql(u8, token, "HH")) {
                     if (self.hour < 10) {
                         try sb.append("0");
                     }
                     try sb.appendf("{d}", .{self.hour});
+                } else if (std.mem.eql(u8, token, "kk")) {
+                    if (self.hour < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.hour});
+                } else if (std.mem.eql(u8, token, "k")) {
+                    try sb.appendf("{d}", .{self.hour});
+                } else if (std.mem.eql(u8, token, "hh")) {
+                    const h = @rem(self.hour, 12);
+                    try sb.appendf("{d}", .{h});
+                } else if (std.mem.eql(u8, token, "h")) {
+                    const h = @rem(self.hour, 12);
+                    if (h < 10) {
+                        try sb.append("0");
+                        try sb.appendf("0{d}", .{h});
+                    } else {
+                        try sb.appendf("{d}", .{h});
+                    }
                 } else if (std.mem.eql(u8, token, "mm")) {
                     if (self.min < 10) {
                         try sb.append("0");
                     }
                     try sb.appendf("{d}", .{self.min});
+                } else if (std.mem.eql(u8, token, "ss")) {
+                    if (self.sec < 10) {
+                        try sb.append("0");
+                    }
+                    try sb.appendf("{d}", .{self.sec});
+                } else if (@intFromEnum(self.measure) >= @intFromEnum(Measure.millis) and std.mem.eql(u8, token, "SSS")) {
+                    var buffer: [3]u8 = undefined;
+                    if (self.milli < 10) {
+                        _ = try std.fmt.bufPrint(&buffer, "00{d}", .{self.milli});
+                    } else if (self.milli < 100) {
+                        _ = try std.fmt.bufPrint(&buffer, "0{d}", .{self.milli});
+                    } else {
+                        _ = try std.fmt.bufPrint(&buffer, "{d}", .{self.milli});
+                    }
+                    try sb.append(buffer[0..3]);
+                } else if (std.mem.eql(u8, token, "a")) {
+                    if (self.hour <= 11) {
+                        try sb.append("AM");
+                    } else {
+                        try sb.append("PM");
+                    }
+                } else if (std.mem.eql(u8, token, "c")) {
+                    try sb.appendf("{d}", .{self.wday});
+                } else if (std.mem.eql(u8, token, "dd")) {
+                    const wd = @as(Weekday, @enumFromInt(self.wday));
+                    try sb.appendf("{s}", .{wd.shorterString()});
+                } else if (std.mem.eql(u8, token, "ddd")) {
+                    const wd = @as(Weekday, @enumFromInt(self.wday));
+                    try sb.appendf("{s}", .{wd.shortString()});
+                } else if (std.mem.eql(u8, token, "dddd")) {
+                    const wd = @as(Weekday, @enumFromInt(self.wday));
+                    try sb.appendf("{s}", .{wd.string()});
+                } else if (std.mem.eql(u8, token, "ZZ")) {
+                    try sb.append("ZZ(N/A)");
+                } else if (std.mem.eql(u8, token, "ZZZ")) {
+                    try sb.append("ZZZ(N/A)");
+                } else if (std.mem.eql(u8, token, "NN")) {
+                    try sb.append("NN(N/A)");
+                } else if (std.mem.eql(u8, token, "wo")) {
+                    try sb.append("wo(N/A)");
+                } else if (std.mem.eql(u8, token, "ww")) {
+                    try sb.append("ww(N/A)");
+                } else if (std.mem.eql(u8, token, "QQ")) {
+                    try sb.append("QQ(N/A)");
+                } else if (std.mem.eql(u8, token, "QO")) {
+                    try sb.append("QO(N/A)");
                 } else {
                     try sb.append(token);
                 }
             }
-            std.mem.copyBackwards(u8, @constCast(dst), sb.bytes());
+
+            const bs = sb.bytes();
+            std.mem.copyForwards(u8, @constCast(dst), bs);
+            return bs.len;
         }
-
-        // format returns a date string in "YYYY-MM-DD HH:mm" format (24h).
-        pub fn format(self: Self) ![]u8 {
-            var buffer: [16]u8 = undefined;
-            try self.custom_format("YYYY-MM-DD HH:mm", &buffer);
-            return &buffer;
-        }
-
-        // // format_ss returns a date string in "YYYY-MM-DD HH:mm:ss" format (24h).
-        // pub fn format_ss(self: *Self) []u8 {
-        //     return '${t.year:04d}-${t.month:02d}-${t.day:02d} ${t.hour:02d}:${t.minute:02d}:${t.second:02d}'
-        // }
-
-        // // format_ss_milli returns a date string in "YYYY-MM-DD HH:mm:ss.123" format (24h).
-        // pub fn format_ss_milli(self: *Self) []u8 {
-        //     return '${t.year:04d}-${t.month:02d}-${t.day:02d} ${t.hour:02d}:${t.minute:02d}:${t.second:02d}.${(t.microsecond / 1000):03d}'
-        // }
-
-        // // format_rfc3339 returns a date string in "YYYY-MM-DDTHH:mm:ss.123Z" format (24 hours, see https://www.rfc-editor.org/rfc/rfc3339.html)
-        // // RFC3339 is an Internet profile, based on the ISO 8601 standard for for representation of dates and times using the Gregorian calendar.
-        // // It is intended to improve consistency and interoperability, when representing and using date and time in Internet protocols.
-        // pub fn format_rfc3339(self: *Self) []u8 {
-        //     u := t.local_to_utc()
-        //     return '${u.year:04d}-${u.month:02d}-${u.day:02d}T${u.hour:02d}:${u.minute:02d}:${u.second:02d}.${(u.microsecond / 1000):03d}Z'
-        // }
-
-        // // format_ss_micro returns a date string in "YYYY-MM-DD HH:mm:ss.123456" format (24h).
-        // pub fn format_ss_micro(self: *Self) []u8 {
-        //     return '${t.year:04d}-${t.month:02d}-${t.day:02d} ${t.hour:02d}:${t.minute:02d}:${t.second:02d}.${t.microsecond:06d}'
-        // }
-
-        // // hhmm returns a date string in "HH:mm" format (24h).
-        // pub fn hhmm(self: *Self) []u8 {
-        //     return '${t.hour:02d}:${t.minute:02d}'
-        // }
-
-        // // hhmmss returns a date string in "HH:mm:ss" format (24h).
-        // pub fn hhmmss(self: *Self) []u8 {
-        //     return '${t.hour:02d}:${t.minute:02d}:${t.second:02d}'
-        // }
-
-        // // hhmm12 returns a date string in "hh:mm" format (12h).
-        // pub fn hhmm12(self: *Self) []u8 {
-        //     return t.get_fmt_time_str(.hhmm12)
-        // }
-
-        // // ymmdd returns a date string in "YYYY-MM-DD" format.
-        // pub fn ymmdd(self: *Self) []u8 {
-        //     return t.get_fmt_date_str(.hyphen, .yyyymmdd)
-        // }
-
-        // // ddmmy returns a date string in "DD.MM.YYYY" format.
-        // pub fn ddmmy(self: *Self) []u8 {
-        //     return t.get_fmt_date_str(.dot, .ddmmyyyy)
-        // }
-
-        // // md returns a date string in "MMM D" format.
-        // pub fn md(self: *Self) []u8 {
-        //     return t.get_fmt_date_str(.space, .mmmd)
-        // }
     };
 }
 
@@ -343,9 +472,9 @@ const daysBefore = [13]u32{
     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 };
 
-const tokens_2 = [16][]const u8{ "MM", "DD", "Do", "YY", "ss", "kk", "NN", "mm", "hh", "HH", "ZZ", "dd", "Qo", "QQ", "wo", "ww" };
-const tokens_3 = [4][]const u8{ "MMM", "DDD", "ZZZ", "ddd" };
-const tokens_4 = [5][]const u8{ "MMMM", "DDDD", "DDDo", "dddd", "YYYY" };
+const tokens_2 = [_][]const u8{ "MM", "Mo", "DD", "Do", "YY", "ss", "kk", "NN", "mm", "hh", "HH", "ZZ", "dd", "Qo", "QQ", "wo", "ww" };
+const tokens_3 = [_][]const u8{ "MMM", "DDD", "ZZZ", "ddd", "SSS" };
+const tokens_4 = [_][]const u8{ "MMMM", "DDDD", "DDDo", "dddd", "YYYY" };
 
 fn in2(elem: []const u8) bool {
     for (tokens_2) |item| {
@@ -370,6 +499,22 @@ fn in4(elem: []const u8) bool {
         }
     }
     return false;
+}
+
+fn weekday(y: i128, m: i128, d: i128) i128 {
+    // Sakomotho's algorithm is explained here:
+    // https://stackoverflow.com/a/6385934
+    const t = [_]u8{ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
+    var sy = y;
+    if (m < 3) {
+        sy = sy - 1;
+    }
+    const t1 = @divTrunc(sy, 4);
+    const t2 = @divTrunc(sy, 100);
+    const t3 = @divTrunc(sy, 400);
+
+    const i = @as(usize, @intCast(m));
+    return @rem((sy + t1 - t2 + t3 + t[i - 1] + d - 1), 7) + 1;
 }
 
 test "format - YYYY-MM-DD HH:mm" {
