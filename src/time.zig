@@ -1,7 +1,7 @@
 const std = @import("std");
 const strings = @import("bytes/strings.zig");
 
-pub const Measure = enum(u4) { seconds = 0, millis = 1, micros = 2, nanos = 3 };
+pub const Measure = enum(u2) { seconds = 0, millis = 1, micros = 2, nanos = 3 };
 
 pub const Month = enum(u4) {
     January = 1,
@@ -120,18 +120,18 @@ pub fn Time(comptime measure: Measure) type {
         measure: Measure = measure,
         value: i128,
 
-        year: u16 = 0,
-        month: u16 = 0,
-        yday: u16 = 0,
-        wday: u16 = 0,
-        day: u16 = 0,
-        hour: u16 = 0,
-        min: u16 = 0,
-        sec: u16 = 0,
+        year: u12 = 0,
+        month: u4 = 0,
+        yday: u9 = 0,
+        wday: u3 = 0,
+        day: u5 = 0,
+        hour: u6 = 0,
+        min: u6 = 0,
+        sec: u6 = 0,
 
-        milli: u16 = 0,
-        micro: u16 = 0,
-        nano: u16 = 0,
+        milli: u10 = 0,
+        micro: u10 = 0,
+        nano: u10 = 0,
 
         pub fn now() Self {
             const t = @constCast(&Self{ .value = switch (measure) {
@@ -148,31 +148,31 @@ pub fn Time(comptime measure: Measure) type {
                 inline .seconds => self.value,
                 inline .millis => blk: {
                     const milli = @rem(self.value, std.time.ms_per_s);
-                    @atomicStore(u16, @constCast(&self.milli), @as(u16, @intCast(milli)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.milli), @as(u10, @intCast(milli)), .Monotonic);
 
                     break :blk @divTrunc(self.value, std.time.ms_per_s);
                 },
                 inline .micros => blk: {
                     const micro = @rem(self.value, std.time.ns_per_us);
-                    @atomicStore(u16, @constCast(&self.micro), @as(u16, @intCast(micro)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.micro), @as(u10, @intCast(micro)), .Monotonic);
 
                     var milli = @rem(self.value, std.time.us_per_s);
                     milli = @divTrunc(milli, std.time.ns_per_us);
-                    @atomicStore(u16, @constCast(&self.milli), @as(u16, @intCast(milli)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.milli), @as(u10, @intCast(milli)), .Monotonic);
 
                     break :blk @divTrunc(self.value, std.time.us_per_s);
                 },
                 inline .nanos => blk: {
                     const nano = @rem(self.value, std.time.ns_per_us);
-                    @atomicStore(u16, @constCast(&self.nano), @as(u16, @intCast(nano)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.nano), @as(u10, @intCast(nano)), .Monotonic);
 
                     var micro = @rem(self.value, std.time.ns_per_ms);
                     micro = @divTrunc(micro, std.time.ns_per_us);
-                    @atomicStore(u16, @constCast(&self.micro), @as(u16, @intCast(micro)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.micro), @as(u10, @intCast(micro)), .Monotonic);
 
                     var milli = @rem(self.value, std.time.ns_per_s);
                     milli = @divTrunc(milli, std.time.ns_per_ms);
-                    @atomicStore(u16, @constCast(&self.milli), @as(u16, @intCast(milli)), .Monotonic);
+                    @atomicStore(u10, @constCast(&self.milli), @as(u10, @intCast(milli)), .Monotonic);
 
                     break :blk @divTrunc(self.value, std.time.ns_per_s);
                 },
@@ -235,14 +235,14 @@ pub fn Time(comptime measure: Measure) type {
                     month = 2; // February
                     day = 29;
 
-                    @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.month), @as(u16, @intCast(month)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.yday), @as(u16, @intCast(d)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.wday), @as(u16, @intCast(weekday(year, month, day))), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.day), @as(u16, @intCast(day)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.hour), @as(u16, @intCast(hour)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.min), @as(u16, @intCast(min)), .Monotonic);
-                    @atomicStore(u16, @constCast(&self.sec), @as(u16, @intCast(sec)), .Monotonic);
+                    @atomicStore(u12, @constCast(&self.year), @as(u12, @intCast(year)), .Monotonic);
+                    @atomicStore(u4, @constCast(&self.month), @as(u4, @intCast(month)), .Monotonic);
+                    @atomicStore(u9, @constCast(&self.yday), @as(u9, @intCast(d)), .Monotonic);
+                    @atomicStore(u5, @constCast(&self.day), @as(u5, @intCast(day)), .Monotonic);
+                    @atomicStore(u6, @constCast(&self.hour), @as(u6, @intCast(hour)), .Monotonic);
+                    @atomicStore(u6, @constCast(&self.min), @as(u6, @intCast(min)), .Monotonic);
+                    @atomicStore(u6, @constCast(&self.sec), @as(u6, @intCast(sec)), .Monotonic);
+                    @atomicStore(u3, @constCast(&self.wday), @as(u3, @intCast(weekday(self.year, self.month, self.day))), .Monotonic);
 
                     return self;
                 }
@@ -260,14 +260,14 @@ pub fn Time(comptime measure: Measure) type {
             month += 1; // because January is 1
             day = day - begin + 1;
 
-            @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.month), @as(u16, @intCast(month)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.day), @as(u16, @intCast(day)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.yday), @as(u16, @intCast(d)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.wday), @as(u16, @intCast(weekday(year, month, day))), .Monotonic);
-            @atomicStore(u16, @constCast(&self.hour), @as(u16, @intCast(hour)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.min), @as(u16, @intCast(min)), .Monotonic);
-            @atomicStore(u16, @constCast(&self.sec), @as(u16, @intCast(sec)), .Monotonic);
+            @atomicStore(u12, @constCast(&self.year), @as(u12, @intCast(year)), .Monotonic);
+            @atomicStore(u4, @constCast(&self.month), @as(u4, @intCast(month)), .Monotonic);
+            @atomicStore(u9, @constCast(&self.yday), @as(u9, @intCast(d)), .Monotonic);
+            @atomicStore(u5, @constCast(&self.day), @as(u5, @intCast(day)), .Monotonic);
+            @atomicStore(u6, @constCast(&self.hour), @as(u6, @intCast(hour)), .Monotonic);
+            @atomicStore(u6, @constCast(&self.min), @as(u6, @intCast(min)), .Monotonic);
+            @atomicStore(u6, @constCast(&self.sec), @as(u6, @intCast(sec)), .Monotonic);
+            @atomicStore(u3, @constCast(&self.wday), @as(u3, @intCast(weekday(self.year, self.month, self.day))), .Monotonic);
 
             return self;
         }
@@ -289,7 +289,11 @@ pub fn Time(comptime measure: Measure) type {
                     }
 
                     const slice = pattern.ptr[i .. i + j];
-                    if (j == 1 or (j == 2 and in2(slice)) or (j == 3 and in3(slice)) or (j == 4 and in4(slice))) {
+                    const l1 = j == 1;
+                    const l2 = j == 2 and in(2, slice);
+                    const l3 = j == 3 and in(3, slice);
+                    const l4 = j == 4 and in(4, slice);
+                    if (l1 or l2 or l3 or l4) {
                         const token = pattern.ptr[i .. i + j];
                         try tokens.writeItem(token);
                         i += (j - 1);
@@ -391,15 +395,20 @@ pub fn Time(comptime measure: Measure) type {
                     }
                     try sb.appendf("{d}", .{self.sec});
                 } else if (@intFromEnum(self.measure) >= @intFromEnum(Measure.millis) and std.mem.eql(u8, token, "SSS")) {
-                    var buffer: [3]u8 = undefined;
-                    if (self.milli < 10) {
-                        _ = try std.fmt.bufPrint(&buffer, "00{d}", .{self.milli});
-                    } else if (self.milli < 100) {
-                        _ = try std.fmt.bufPrint(&buffer, "0{d}", .{self.milli});
-                    } else {
-                        _ = try std.fmt.bufPrint(&buffer, "{d}", .{self.milli});
+                    const items = [_]u10{ self.milli, self.micro, self.nano };
+                    for (items) |item| {
+                        if (item > 0) {
+                            var buffer: [3]u8 = undefined;
+                            if (item < 10) {
+                                _ = try std.fmt.bufPrint(&buffer, "00{d}", .{item});
+                            } else if (item < 100) {
+                                _ = try std.fmt.bufPrint(&buffer, "0{d}", .{item});
+                            } else {
+                                _ = try std.fmt.bufPrint(&buffer, "{d}", .{item});
+                            }
+                            try sb.append(buffer[0..3]);
+                        }
                     }
-                    try sb.append(buffer[0..3]);
                 } else if (std.mem.eql(u8, token, "a")) {
                     if (self.hour <= 11) {
                         try sb.append("AM");
@@ -436,9 +445,7 @@ pub fn Time(comptime measure: Measure) type {
                 }
             }
 
-            const bs = sb.bytes();
-            std.mem.copyForwards(u8, @constCast(dst), bs);
-            return bs.len;
+            return try sb.bytesInto(dst);
         }
     };
 }
@@ -476,24 +483,13 @@ const tokens_2 = [_][]const u8{ "MM", "Mo", "DD", "Do", "YY", "ss", "kk", "NN", 
 const tokens_3 = [_][]const u8{ "MMM", "DDD", "ZZZ", "ddd", "SSS" };
 const tokens_4 = [_][]const u8{ "MMMM", "DDDD", "DDDo", "dddd", "YYYY" };
 
-fn in2(elem: []const u8) bool {
-    for (tokens_2) |item| {
-        if (std.mem.eql(u8, item, elem)) {
-            return true;
-        }
-    }
-    return false;
-}
-fn in3(elem: []const u8) bool {
-    for (tokens_3) |item| {
-        if (std.mem.eql(u8, item, elem)) {
-            return true;
-        }
-    }
-    return false;
-}
-fn in4(elem: []const u8) bool {
-    for (tokens_4) |item| {
+fn in(comptime tokentype: u4, elem: []const u8) bool {
+    for (switch (tokentype) {
+        inline 2 => tokens_2,
+        inline 3 => tokens_3,
+        inline 4 => tokens_4,
+        inline 5...15, 0...1 => [_][]const u8{},
+    }) |item| {
         if (std.mem.eql(u8, item, elem)) {
             return true;
         }
@@ -501,10 +497,10 @@ fn in4(elem: []const u8) bool {
     return false;
 }
 
-fn weekday(y: i128, m: i128, d: i128) i128 {
+const weekday_t = [_]u8{ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
+fn weekday(y: u12, m: u4, d: u5) u16 {
     // Sakomotho's algorithm is explained here:
     // https://stackoverflow.com/a/6385934
-    const t = [_]u8{ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
     var sy = y;
     if (m < 3) {
         sy = sy - 1;
@@ -514,7 +510,7 @@ fn weekday(y: i128, m: i128, d: i128) i128 {
     const t3 = @divTrunc(sy, 400);
 
     const i = @as(usize, @intCast(m));
-    return @rem((sy + t1 - t2 + t3 + t[i - 1] + d - 1), 7) + 1;
+    return @rem((sy + t1 - t2 + t3 + weekday_t[i - 1] + d - 1), 7) + 1;
 }
 
 test "format - YYYY-MM-DD HH:mm" {

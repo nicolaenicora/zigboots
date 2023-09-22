@@ -2,7 +2,7 @@ const std = @import("std");
 const debug = std.debug;
 const StringBuilder = @import("bytes/strings.zig").StringBuilder;
 
-const Logger = @import("logger.zig").Logger(.json, .nanos, "YYYY/MM/DD hh:mm:ss.SSS a");
+const Logger = @import("logger.zig").Logger(.simple, .nanos, "YYYY/MM/DD HH:mm:ss.SSS hha");
 const Level = @import("logger.zig").Level;
 const Format = @import("logger.zig").Format;
 const Time = @import("time.zig").Time;

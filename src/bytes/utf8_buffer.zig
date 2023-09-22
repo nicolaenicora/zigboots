@@ -494,6 +494,13 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return self.buffer.bytes();
         }
 
+        pub fn bytesInto(self: *Self, dst: []const u8) !usize {
+            try self.shrink();
+            const bs = self.bytes();
+            std.mem.copyForwards(u8, @constCast(dst), bs);
+            return bs.len;
+        }
+
         pub fn bytesWithAllocator(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
             return try self.buffer.copyUsingAllocator(allocator);
         }
