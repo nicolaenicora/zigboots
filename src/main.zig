@@ -1,11 +1,14 @@
 const std = @import("std");
 const debug = std.debug;
-const StringBuilder = @import("bytes/strings.zig").StringBuilder;
+const pstr = @import("xstd/bytes/strings.zig");
+const StringBuilder = pstr.StringBuilder;
 
-const Logger = @import("logger.zig").Logger(.simple, .nanos, "YYYY/MM/DD HH:mm:ss.SSS");
-const Level = @import("logger.zig").Level;
-const Format = @import("logger.zig").Format;
-const Time = @import("time.zig").Time;
+const plog = @import("xstd/logger.zig");
+const Logger = plog.Logger(.simple, .nanos, "YYYY MMM Do dddd HH:mm:ss.SSS - Qo");
+const Level = plog.Level;
+const Format = plog.Format;
+
+const Time = @import("xstd/time.zig").Time;
 
 const Error = error{OutOfMemoryClient};
 
