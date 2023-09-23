@@ -3,6 +3,7 @@ const strings = @import("bytes/strings.zig");
 
 pub const Measure = enum(u2) { seconds = 0, millis = 1, micros = 2, nanos = 3 };
 
+const month_strs = [_][]const u8{ "", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
 pub const Month = enum(u4) {
     January = 1,
     February,
@@ -18,39 +19,15 @@ pub const Month = enum(u4) {
     December,
 
     pub fn string(self: Month) []const u8 {
-        return switch (self) {
-            .January => "January",
-            .February => "February",
-            .March => "March",
-            .April => "April",
-            .May => "May",
-            .June => "June",
-            .July => "July",
-            .August => "August",
-            .September => "September",
-            .October => "October",
-            .November => "November",
-            .December => "December",
-        };
+        return month_strs[@intFromEnum(self)];
     }
 
     pub fn shortString(self: Month) []const u8 {
-        return switch (self) {
-            .January => "Jan",
-            .February => "Feb",
-            .March => "Mar",
-            .April => "Apr",
-            .May => "May",
-            .June => "Jun",
-            .July => "Jul",
-            .August => "Aug",
-            .September => "Sep",
-            .October => "Oct",
-            .November => "Nov",
-            .December => "Dec",
-        };
+        return string(self)[0..3];
     }
 };
+
+const weekday_strs = [_][]const u8{ "", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
 pub const Weekday = enum(u3) {
     Monday = 1,
     Tuesday,
@@ -61,39 +38,14 @@ pub const Weekday = enum(u3) {
     Sunday,
 
     pub fn string(self: Weekday) []const u8 {
-        return switch (self) {
-            .Sunday => "Sunday",
-            .Monday => "Monday",
-            .Tuesday => "Tuesday",
-            .Wednesday => "Wednesday",
-            .Thursday => "Thursday",
-            .Friday => "Friday",
-            .Saturday => "Saturday",
-        };
+        return weekday_strs[@intFromEnum(self)];
     }
-
     pub fn shortString(self: Weekday) []const u8 {
-        return switch (self) {
-            .Sunday => "Sun",
-            .Monday => "Mon",
-            .Tuesday => "Tue",
-            .Wednesday => "Wed",
-            .Thursday => "Thu",
-            .Friday => "Fri",
-            .Saturday => "Sat",
-        };
+        return string(self)[0..3];
     }
 
     pub fn shorterString(self: Weekday) []const u8 {
-        return switch (self) {
-            .Sunday => "Su",
-            .Monday => "Mo",
-            .Tuesday => "Tu",
-            .Wednesday => "We",
-            .Thursday => "Th",
-            .Friday => "Fr",
-            .Saturday => "Sa",
-        };
+        return string(self)[0..2];
     }
 };
 
@@ -315,21 +267,17 @@ pub fn Time(comptime measure: Measure) type {
                     }
                     try sb.appendf("{d}", .{self.month});
                 } else if (std.mem.eql(u8, token, "MMMM")) {
-                    const m = @as(Month, @enumFromInt(self.month));
-                    try sb.appendf("{s}", .{m.string()});
+                    try sb.appendf("{s}", .{self.getMonth().string()});
                 } else if (std.mem.eql(u8, token, "MMM")) {
-                    const m = @as(Month, @enumFromInt(self.month));
-                    try sb.appendf("{s}", .{m.shortString()});
+                    try sb.appendf("{s}", .{self.getMonth().shortString()});
                 } else if (std.mem.eql(u8, token, "Mo")) {
-                    if (self.month == 1) {
-                        try sb.appendf("{d}st", .{self.month});
-                    } else if (self.month == 2) {
-                        try sb.appendf("{d}nd", .{self.month});
-                    } else if (self.month == 3) {
-                        try sb.appendf("{d}rd", .{self.month});
-                    } else {
-                        try sb.appendf("{d}th", .{self.month});
-                    }
+                    const suffix = switch (self.month) {
+                        1 => "st",
+                        2 => "nt",
+                        3 => "rd",
+                        else => "th",
+                    };
+                    try sb.appendf("{d}{s}", .{ self.month, suffix });
                 } else if (std.mem.eql(u8, token, "DD")) {
                     if (self.day < 10) {
                         try sb.append("0");
@@ -338,29 +286,23 @@ pub fn Time(comptime measure: Measure) type {
                 } else if (std.mem.eql(u8, token, "DDDD")) {
                     try sb.appendf("{d}", .{self.yday});
                 } else if (std.mem.eql(u8, token, "DDDo")) {
-                    try sb.appendf("{d}", .{self.yday});
                     const rem = @rem(self.yday, daysBefore[self.month]);
-                    if (rem == 1) {
-                        try sb.append("st");
-                    } else if (rem == 2) {
-                        try sb.append("nd");
-                    } else if (rem == 3) {
-                        try sb.append("rd");
-                    } else {
-                        try sb.append("th");
-                    }
+                    const suffix = switch (rem) {
+                        1 => "st",
+                        2 => "nt",
+                        3 => "rd",
+                        else => "th",
+                    };
+                    try sb.appendf("{d}{s}", .{ self.yday, suffix });
                 } else if (std.mem.eql(u8, token, "Do")) {
-                    try sb.appendf("{d}", .{self.day});
                     const rem = @rem(self.day, 30);
-                    if (rem == 1) {
-                        try sb.append("st");
-                    } else if (rem == 2) {
-                        try sb.append("nd");
-                    } else if (rem == 3) {
-                        try sb.append("rd");
-                    } else {
-                        try sb.append("th");
-                    }
+                    const suffix = switch (rem) {
+                        1 => "st",
+                        2 => "nt",
+                        3 => "rd",
+                        else => "th",
+                    };
+                    try sb.appendf("{d}{s}", .{ self.day, suffix });
                 } else if (std.mem.eql(u8, token, "HH")) {
                     if (self.hour < 10) {
                         try sb.append("0");
@@ -418,14 +360,11 @@ pub fn Time(comptime measure: Measure) type {
                 } else if (std.mem.eql(u8, token, "c")) {
                     try sb.appendf("{d}", .{self.wday});
                 } else if (std.mem.eql(u8, token, "dd")) {
-                    const wd = @as(Weekday, @enumFromInt(self.wday));
-                    try sb.appendf("{s}", .{wd.shorterString()});
+                    try sb.appendf("{s}", .{self.getWeekday().shorterString()});
                 } else if (std.mem.eql(u8, token, "ddd")) {
-                    const wd = @as(Weekday, @enumFromInt(self.wday));
-                    try sb.appendf("{s}", .{wd.shortString()});
+                    try sb.appendf("{s}", .{self.getWeekday().shortString()});
                 } else if (std.mem.eql(u8, token, "dddd")) {
-                    const wd = @as(Weekday, @enumFromInt(self.wday));
-                    try sb.appendf("{s}", .{wd.string()});
+                    try sb.appendf("{s}", .{self.getWeekday().string()});
                 } else if (std.mem.eql(u8, token, "ZZ")) {
                     try sb.append("ZZ(N/A)");
                 } else if (std.mem.eql(u8, token, "ZZZ")) {
@@ -446,6 +385,13 @@ pub fn Time(comptime measure: Measure) type {
             }
 
             return try sb.bytesInto(dst);
+        }
+
+        pub fn getWeekday(self: Self) Weekday {
+            return @as(Weekday, @enumFromInt(self.wday));
+        }
+        pub fn getMonth(self: Self) Month {
+            return @as(Month, @enumFromInt(self.month));
         }
     };
 }
