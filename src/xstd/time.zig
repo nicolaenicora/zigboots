@@ -72,7 +72,7 @@ pub fn Time(comptime measure: Measure) type {
         measure: Measure = measure,
         value: i128,
 
-        year: u12 = 0,
+        year: u16 = 0,
         month: u5 = 0,
         yday: u9 = 0,
         wday: u3 = 0,
@@ -188,7 +188,7 @@ pub fn Time(comptime measure: Measure) type {
                     month = 2; // February
                     day = 29;
 
-                    @atomicStore(u12, @constCast(&self.year), @as(u12, @intCast(year)), .Monotonic);
+                    @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
                     @atomicStore(u5, @constCast(&self.month), @as(u5, @intCast(month)), .Monotonic);
                     @atomicStore(u9, @constCast(&self.yday), @as(u9, @intCast(d)), .Monotonic);
                     @atomicStore(u5, @constCast(&self.day), @as(u5, @intCast(day)), .Monotonic);
@@ -213,7 +213,7 @@ pub fn Time(comptime measure: Measure) type {
             month += 1; // because January is 1
             day = day - begin + 1;
 
-            @atomicStore(u12, @constCast(&self.year), @as(u12, @intCast(year)), .Monotonic);
+            @atomicStore(u16, @constCast(&self.year), @as(u16, @intCast(year)), .Monotonic);
             @atomicStore(u5, @constCast(&self.month), @as(u5, @intCast(month)), .Monotonic);
             @atomicStore(u9, @constCast(&self.yday), @as(u9, @intCast(d)), .Monotonic);
             @atomicStore(u5, @constCast(&self.day), @as(u5, @intCast(day)), .Monotonic);
@@ -569,7 +569,7 @@ fn mceil(x: i128) i128 {
 }
 
 const weekday_t = [_]u8{ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
-fn weekday(y: u12, m: u5, d: u5) u16 {
+fn weekday(y: u16, m: u5, d: u5) u16 {
     // Sakomotho's algorithm is explained here:
     // https://stackoverflow.com/a/6385934
     var sy = y;
@@ -592,63 +592,3 @@ test "format - YYYY-MM-DD HH:mm" {
 
     try std.testing.expectEqual(f, b);
 }
-
-// const std = @import("std");
-// const debug = std.debug;
-// const pstr = @import("xstd/bytes/strings.zig");
-// const StringBuilder = pstr.StringBuilder;
-
-// const plog = @import("xstd/logger.zig");
-// const Logger = plog.Logger(.simple, .nanos, "YYYY MMM Do dddd HH:mm:ss.SSS - Qo");
-// const Level = plog.Level;
-// const Format = plog.Format;
-
-// const Time = @import("xstd/time.zig").Time;
-
-// const Error = error{OutOfMemoryClient};
-
-// const Element = struct {
-//     int: i32,
-//     string: []const u8,
-//     elem: ?*const Element = null,
-// };
-
-// pub fn main() !void {
-//     std.debug.print("Starting application.\n", .{});
-
-//     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-//     defer arena.deinit();
-
-//     const level = try Level.ParseString("TRACE");
-//     const logger = Logger.init(arena.allocator(), level);
-//     @constCast(&logger.Trace())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Attr("counter", i32, 34)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-//     @constCast(&logger.Debug())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Attr("counter", i32, 34)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-//     @constCast(&logger.Info())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Attr("counter", i32, 34)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-//     @constCast(&logger.Warn())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Attr("counter", i32, 34)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-//     @constCast(&logger.Error())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Error(Error, Error.OutOfMemoryClient)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-//     @constCast(&logger.Disabled())
-//         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Attr("counter", i32, 34)
-//         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
-//         .Msg("Initialization...");
-// }

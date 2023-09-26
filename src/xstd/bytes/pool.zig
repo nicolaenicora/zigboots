@@ -55,14 +55,11 @@ pub fn Pool(comptime T: type) type {
 // const Allocator = mem.Allocator;
 // const AllocatorError = mem.Allocator.Error;
 
-// const LoggerBuilder = @import("logger.zig").LoggerBuilder;
-// const Level = @import("logger.zig").Level;
+// const Error = @import("xstd/bytes/buffer.zig").Error;
+// const Utf8BufferPool = @import("xstd/bytes/utf8_buffer.zig").Utf8BufferPool;
+// const Utf8Buffer = @import("xstd/bytes/utf8_buffer.zig").Utf8Buffer;
 
-// const Error = @import("bytes/buffer.zig").Error;
-// const Utf8BufferPool = @import("bytes/utf8_buffer.zig").Utf8BufferPool;
-// const Utf8Buffer = @import("bytes/utf8_buffer.zig").Utf8Buffer;
-
-// const Pool = @import("bytes/pool.zig").Pool;
+// const Pool = @import("xstd/bytes/pool.zig").Pool;
 
 // pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Utf8Buffer(false) {
 //     return Utf8Buffer(false).init(allocator);
