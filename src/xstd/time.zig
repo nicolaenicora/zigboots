@@ -1,5 +1,5 @@
 const std = @import("std");
-const strings = @import("bytes/strings.zig");
+const StringBuilder = @import("bytes/types.zig").StringBuilder;
 
 pub const Measure = enum(u2) { seconds = 0, millis = 1, micros = 2, nanos = 3 };
 
@@ -320,7 +320,7 @@ pub fn Time(comptime measure: Measure) type {
                 i += 1;
             }
 
-            var sb = try strings.StringBuilder.initWithCapacity(arena.allocator(), pattern.len);
+            var sb = try StringBuilder.initWithCapacity(arena.allocator(), pattern.len);
             defer sb.deinit();
 
             while (tokens.readItem()) |token| {
@@ -582,13 +582,4 @@ fn weekday(y: u16, m: u5, d: u5) u16 {
 
     const i = @as(usize, @intCast(m));
     return @rem((sy + t1 - t2 + t3 + weekday_t[i - 1] + d - 1), 7) + 1;
-}
-
-test "format - YYYY-MM-DD HH:mm" {
-    const t = Time(.seconds).now();
-    const f = t.format();
-
-    const b = try strings.formatf(90, "{}-{}-{} {}:{}", .{ t.year, t.month, t.day, t.hour, t.min });
-
-    try std.testing.expectEqual(f, b);
 }

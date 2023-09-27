@@ -4,8 +4,6 @@ const Stack = std.atomic.Stack;
 const Error = @import("buffer.zig").Error;
 const Buffer = @import("buffer.zig").Buffer;
 
-const assert = std.debug.assert;
-
 pub fn Utf8BufferPool(comptime threadsafe: bool) type {
     return struct {
         const Self = @This();
@@ -635,6 +633,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 const eql = std.mem.eql;
+const assert = std.debug.assert;
 
 test "Basic Usage" {
     // Use your favorite allocator
@@ -812,4 +811,55 @@ test "UTF8 Buffer Tests" {
     }
 
     assert(i == buffer.length());
+
+    // Replace
+    buffer.clear();
+    try buffer.append("💯Hello💯");
+    assert(buffer.compare("💯Hello💯"));
+
+    assert(try buffer.replaceFirst("💯", "++++++++++"));
+    assert(buffer.compare("++++++++++Hello💯"));
+
+    assert(!try buffer.replaceFirst("Hello1", "unknown"));
+
+    assert(try buffer.replaceLast("💯", "1"));
+    assert(buffer.compare("++++++++++Hello1"));
+
+    assert(!try buffer.replaceLast("💯", "unknown"));
+
+    assert(try buffer.replaceAll("++++++++++", "💯"));
+    assert(try buffer.replaceAll("1", "💯"));
+    assert(buffer.compare("💯Hello💯"));
+
+    // Remove
+    buffer.clear();
+    try buffer.append("💯Hello💯 ==== 💯Hello💯");
+    assert(buffer.compare("💯Hello💯 ==== 💯Hello💯"));
+
+    assert(try buffer.removeFirst("💯"));
+    assert(buffer.compare("Hello💯 ==== 💯Hello💯"));
+
+    assert(try buffer.removeLast("💯"));
+    assert(buffer.compare("Hello💯 ==== 💯Hello"));
+
+    assert(try buffer.removeAll("💯"));
+    assert(buffer.compare("Hello ==== Hello"));
+
+    assert(!try buffer.removeAll("💯"));
+    assert(buffer.compare("Hello ==== Hello"));
+
+    // contains
+    buffer.clear();
+    try buffer.append("💯Hello💯 ==== 💯Hello💯");
+    assert(buffer.compare("💯Hello💯 ==== 💯Hello💯"));
+    assert(buffer.contains("= 💯"));
+    assert(!buffer.contains("= 💯 ="));
+
+    // appendN
+    buffer.clear();
+    try buffer.append("💯Hello💯");
+    assert(buffer.compare("💯Hello💯"));
+
+    try buffer.appendN("VaselicaPuiu", 8);
+    assert(buffer.compare("💯Hello💯Vaselica"));
 }
