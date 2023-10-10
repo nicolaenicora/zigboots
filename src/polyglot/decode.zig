@@ -28,7 +28,7 @@ pub fn Nil(b: []const u8) Result(bool) {
 pub fn Map(b: []const u8, key: Kind, value: Kind) !Result(u32) {
     if (b.len > 2) {
         if (b[0] == Kind.Map.code() and b[1] == key.code() and b[2] == value.code()) {
-            return try UInt32(b[3..]);
+            return try Uint32(b[3..]);
         }
     }
     return DecodingError.InvalidMap;
@@ -37,7 +37,7 @@ pub fn Map(b: []const u8, key: Kind, value: Kind) !Result(u32) {
 pub fn Slice(b: []const u8, kind: Kind) !Result(u32) {
     if (b.len > 1) {
         if (b[0] == Kind.Slice.code() and b[1] == kind.code()) {
-            return try UInt32(b[2..]);
+            return try Uint32(b[2..]);
         }
     }
     return DecodingError.InvalidSlice;
@@ -46,7 +46,7 @@ pub fn Slice(b: []const u8, kind: Kind) !Result(u32) {
 pub fn Bytes(b: []const u8) !Result([]const u8) {
     if (b.len > 0) {
         if (b[0] == Kind.Bytes.code()) {
-            const values = try UInt32(b[1..]);
+            const values = try Uint32(b[1..]);
             const buf: []const u8 = values[0];
             const size: usize = values[1];
 
@@ -61,7 +61,7 @@ pub fn Bytes(b: []const u8) !Result([]const u8) {
 fn String(b: []const u8) !Result([]const u8) {
     if (b.len > 0) {
         if (b[0] == Kind.String.code()) {
-            const values = try UInt32(b[1..]);
+            const values = try Uint32(b[1..]);
             const buf: []const u8 = values[0];
             const size: usize = values[1];
 
@@ -91,7 +91,7 @@ pub fn Bool(b: []const u8) !Result(bool) {
     return DecodingError.InvalidBool;
 }
 
-pub fn UInt8(b: []const u8) !Result(u8) {
+pub fn Uint8(b: []const u8) !Result(u8) {
     if (b.len > 1) {
         if (b[0] == Kind.UInt8.code()) {
             return .{ .buff = b[2..], .val = b[1] };
@@ -100,13 +100,13 @@ pub fn UInt8(b: []const u8) !Result(u8) {
     return DecodingError.InvalidUint8;
 }
 
-pub fn UInt16(b: []const u8) !Result(u16) {
+pub fn Uint16(b: []const u8) !Result(u16) {
     return try uint(b, u4, u16, Kind.UInt16, VarIntLen16, DecodingError.InvalidUint16);
 }
-pub fn UInt32(b: []const u8) !Result(u32) {
+pub fn Uint32(b: []const u8) !Result(u32) {
     return try uint(b, u5, u32, Kind.UInt32, VarIntLen32, DecodingError.InvalidUint32);
 }
-pub fn UInt64(b: []const u8) !Result(u64) {
+pub fn Uint64(b: []const u8) !Result(u64) {
     return try uint(b, u6, u64, Kind.UInt64, VarIntLen64, DecodingError.InvalidUint64);
 }
 fn uint(b: []const u8, comptime T: type, comptime R: type, kind: Kind, varIntLen: u8, err: DecodingError) !Result(R) {

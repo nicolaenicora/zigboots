@@ -3,7 +3,7 @@ const Logger = @import("xstd/logger.zig").Logger(.simple, .nanos, "YYYY MMM Do d
 
 const Buffer = @import("xstd/bytes/buffer.zig").Buffer;
 
-const frpc = @import("frpc/types.zig");
+const polyglot = @import("polyglot/types.zig");
 
 const E = error{NoComment};
 
@@ -18,18 +18,18 @@ pub fn main() !void {
     var buf = Buffer.init(allocator);
     defer buf.deinit();
 
-    const encode = frpc.encode;
+    var encoder = polyglot.encoder.init(&buf);
 
-    try encode.Int64(&buf, 255);
-    try encode.UInt16(&buf, 23);
+    _ = try encoder.Int64(255);
+    _ = try encoder.Uint16(23);
 
     const bufBytes = buf.bytes();
     std.debug.print("Buffer - {any}\n", .{bufBytes});
 
-    const decode = frpc.decode;
-    const r1 = try decode.Int64(bufBytes);
+    var decoder = polyglot.decoder.init(bufBytes);
+    const r1 = try decoder.Int64();
     std.debug.print("Result - {any}\n", .{r1});
 
-    const r2 = try decode.UInt16(r1.buff);
+    const r2 = try decoder.Uint16();
     std.debug.print("Result - {any}\n", .{r2});
 }
