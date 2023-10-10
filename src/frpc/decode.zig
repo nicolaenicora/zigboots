@@ -136,15 +136,15 @@ fn uint(b: []const u8, comptime T: type, comptime R: type, kind: Kind, varIntLen
 }
 
 pub fn Int32(b: []const u8) !Result(i32) {
-    return int(b, u32, i32, Kind.Int32, VarIntLen32, DecodingError.InvalidInt32);
+    return int(b, u5, u32, i32, Kind.Int32, VarIntLen32, DecodingError.InvalidInt32);
 }
 pub fn Int64(b: []const u8) !Result(i64) {
-    return int(b, u64, i64, Kind.Int64, VarIntLen64, DecodingError.InvalidInt64);
+    return int(b, u6, u64, i64, Kind.Int64, VarIntLen64, DecodingError.InvalidInt64);
 }
-fn int(b: []const u8, comptime T: type, comptime R: type, kind: Kind, varIntLen: u8, err: DecodingError) !Result(T) {
+fn int(b: []const u8, comptime T1: type, comptime T2: type, comptime R: type, kind: Kind, varIntLen: u8, err: DecodingError) !Result(R) {
     if (b.len > 1 and b[0] == kind.code()) {
-        var ux: T = 0;
-        var s: T = 0;
+        var ux: T2 = 0;
+        var s: T1 = 0;
         for (1..varIntLen + 1) |i| {
             const cb = b[i];
             // Check if msb is set signifying a continuation byte
@@ -153,16 +153,21 @@ fn int(b: []const u8, comptime T: type, comptime R: type, kind: Kind, varIntLen:
                     return err;
                 }
                 // End of varint, add the last bits
-                ux |= @as(T, @intCast(cb)) << s;
+                const bits = @as(T1, @intCast(s));
+                const n = @as(T2, @intCast(cb));
+
+                ux |= n << bits;
                 // Separate value and sign
-                const x = @as(R, @intCast(ux >> 1));
+                var x = @as(R, @intCast(ux >> 1));
                 // If sign bit is set, negate the number
                 if ((ux & 1) != 0) {
                     x = -(x + 1);
                 }
                 return .{ .buff = b[i + 1 ..], .val = x };
             }
-            ux |= @as(T, @intCast(cb & (continuation - 1))) << s;
+            const bits = @as(T1, @intCast(s));
+            const n = @as(T2, @intCast(cb & (continuation - 1)));
+            ux |= n << bits;
             s += 7;
         }
     }

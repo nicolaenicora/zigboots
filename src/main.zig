@@ -20,14 +20,14 @@ pub fn main() !void {
 
     const encode = frpc.encode;
 
-    try encode.UInt8(&buf, 255);
+    try encode.Int64(&buf, 255);
     try encode.UInt16(&buf, 23);
 
     const bufBytes = buf.bytes();
     std.debug.print("Buffer - {any}\n", .{bufBytes});
 
     const decode = frpc.decode;
-    const r1 = try decode.UInt8(bufBytes);
+    const r1 = try decode.Int64(bufBytes);
     std.debug.print("Result - {any}\n", .{r1});
 
     const r2 = try decode.UInt16(r1.buff);
