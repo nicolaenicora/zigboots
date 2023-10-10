@@ -22,14 +22,13 @@ pub fn main() !void {
 
     _ = try encoder.Int64(255);
     _ = try encoder.Uint16(23);
+    _ = try encoder.Error(E, E.NoComment);
 
     const bufBytes = buf.bytes();
     std.debug.print("Buffer - {any}\n", .{bufBytes});
 
     var decoder = polyglot.decoder.init(bufBytes);
-    const r1 = try decoder.Int64();
-    std.debug.print("Result - {any}\n", .{r1});
-
-    const r2 = try decoder.Uint16();
-    std.debug.print("Result - {any}\n", .{r2});
+    std.debug.print("Result - {any}\n", .{try decoder.Int64()});
+    std.debug.print("Result - {any}\n", .{try decoder.Uint16()});
+    std.debug.print("Result - {s}\n", .{try decoder.Error()});
 }

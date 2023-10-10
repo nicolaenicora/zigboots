@@ -46,9 +46,9 @@ pub fn Slice(b: []const u8, kind: Kind) !Result(u32) {
 pub fn Bytes(b: []const u8) !Result([]const u8) {
     if (b.len > 0) {
         if (b[0] == Kind.Bytes.code()) {
-            const values = try Uint32(b[1..]);
-            const buf: []const u8 = values[0];
-            const size: usize = values[1];
+            const r = try Uint32(b[1..]);
+            const buf = r.buff;
+            const size = r.val;
 
             if (buf.len > size - 1) {
                 return .{ .buff = buf[size..], .val = buf[0..size] };
@@ -61,9 +61,9 @@ pub fn Bytes(b: []const u8) !Result([]const u8) {
 fn String(b: []const u8) !Result([]const u8) {
     if (b.len > 0) {
         if (b[0] == Kind.String.code()) {
-            const values = try Uint32(b[1..]);
-            const buf: []const u8 = values[0];
-            const size: usize = values[1];
+            const r = try Uint32(b[1..]);
+            const buf = r.buff;
+            const size = r.val;
 
             if (buf.len > size - 1) {
                 return .{ .buff = buf[size..], .val = buf[0..size] };
