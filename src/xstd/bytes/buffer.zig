@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
 const Stack = std.atomic.Stack;
 
 const assert = std.debug.assert;
@@ -37,7 +39,9 @@ pub fn BufferPool(comptime threadsafe: bool) type {
     };
 }
 
-pub fn Buffer(comptime threadsafe: bool) type {
+pub const Buffer = BufferManaged(!builtin.single_threaded);
+
+pub fn BufferManaged(comptime threadsafe: bool) type {
     return struct {
         const Self = @This();
 
