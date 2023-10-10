@@ -20,9 +20,16 @@ pub fn main() !void {
 
     const encode = frpc.encode;
 
-    try encode.bool(&buf, false);
-    try encode.float32(&buf, std.math.floatMax(f32));
-    try encode.err(&buf, E, E.NoComment);
+    try encode.UInt8(&buf, 255);
+    try encode.UInt16(&buf, 23);
 
-    std.debug.print("Buffer - {any}\n", .{buf.bytes()});
+    const bufBytes = buf.bytes();
+    std.debug.print("Buffer - {any}\n", .{bufBytes});
+
+    const decode = frpc.decode;
+    const r1 = try decode.UInt8(bufBytes);
+    std.debug.print("Result - {any}\n", .{r1});
+
+    const r2 = try decode.UInt16(r1.buff);
+    std.debug.print("Result - {any}\n", .{r2});
 }

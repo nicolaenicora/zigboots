@@ -143,6 +143,30 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             return self.ptr[0..self.len];
         }
 
+        pub fn byteAt(self: *Self, index: usize) ?u8 {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            if (index < self.len) {
+                return self.buffer.ptr[index];
+            }
+            return null;
+        }
+
+        pub fn rangeBytes(self: *Self, start: usize, end: usize) ?u8 {
+            if (threadsafe) {
+                self.buffer.mu.lock();
+                defer self.buffer.mu.unlock();
+            }
+
+            if (start < self.len and end < self.len and start < end) {
+                return self.buffer.ptr[start..end];
+            }
+            return null;
+        }
+
         pub fn clone(self: *Self) Error!Self {
             if (threadsafe) {
                 self.mu.lock();

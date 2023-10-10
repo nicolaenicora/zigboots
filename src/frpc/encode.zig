@@ -1,66 +1,65 @@
 const std = @import("std");
 const Buffer = @import("../xstd/bytes/buffer.zig").Buffer;
 
-const continuation = 0x80;
+const Kind = @import("common.zig").Kind;
+const continuation = @import("common.zig").continuation;
 
-const Kind = enum(u8) { Nil = 0, Slice, Map, Any, Bytes, String, Error, Bool, UInt8, UInt16, UInt32, UInt64, Int32, Int64, Float32, Float64 };
-
-pub fn @"null"(
+pub fn Nil(
     b: *Buffer,
 ) !void {
-    var result = [1]u8{@as(u8, @intCast(@intFromEnum(Kind.Nil)))};
+    var result = [1]u8{Kind.Nil.code()};
     _ = try b.write(result[0..]);
 }
 
-pub fn map(b: *Buffer, size: usize, key: Kind, value: Kind) !void {
-    var result = [3]u8{ @as(u8, @intCast(@intFromEnum(Kind.Map))), @as(u8, @intCast(@intFromEnum(key))), @as(u8, @intCast(@intFromEnum(value))) };
+pub fn Map(b: *Buffer, size: usize, key: Kind, value: Kind) !void {
+    var result = [3]u8{ Kind.Map.code(), key.code(), value.code() };
     _ = try b.write(result[0..]);
-    try uint32(b, size);
+    try UInt32(b, size);
 }
 
-pub fn slice(b: *Buffer, size: usize, kind: Kind) !void {
-    var result = [2]u8{ @as(u8, @intCast(@intFromEnum(Kind.Slice))), @as(u8, @intCast(@intFromEnum(kind))) };
+pub fn Slice(b: *Buffer, size: usize, kind: Kind) !void {
+    var result = [2]u8{ Kind.Slice.code(), kind.code() };
     _ = try b.write(result[0..]);
-    try uint32(b, size);
+    try UInt32(b, size);
 }
 
-pub fn bytes(b: *Buffer, value: []const u8) !void {
-    var result = [1]u8{@as(u8, @intCast(@intFromEnum(Kind.Bytes)))};
+pub fn Bytes(b: *Buffer, value: []const u8) !void {
+    var result = [1]u8{Kind.Bytes.code()};
     _ = try b.write(result[0..]);
-    try uint32(b, value.len);
+    try UInt32(b, value.len);
     _ = try b.write(value[0..]);
 }
 
-pub fn string(b: *Buffer, value: []const u8) !void {
-    var result = [1]u8{@as(u8, @intCast(@intFromEnum(Kind.String)))};
+pub fn String(b: *Buffer, value: []const u8) !void {
+    var result = [1]u8{Kind.String.code()};
     _ = try b.write(result[0..]);
 
-    try uint32(b, @as(u32, @intCast(value.len)));
+    try UInt32(b, @as(u32, @intCast(value.len)));
 
     _ = try b.write(value);
 }
 
-pub fn err(b: *Buffer, comptime V: type, value: V) !void {
-    var result = [1]u8{@intCast(@intFromEnum(Kind.Error))};
+pub fn Error(b: *Buffer, comptime V: type, value: V) !void {
+    var result = [1]u8{Kind.Error.code()};
     _ = try b.write(result[0..]);
 
-    var str_buf: [5000]u8 = undefined;
+    var str_buf = [_]u8{undefined} ** (10 * 1024);
     const buf = try std.fmt.bufPrint(&str_buf, "{any}", .{value});
-    try string(b, buf[0..]);
+    try String(b, buf[0..]);
 }
 
-pub fn @"bool"(b: *Buffer, value: bool) !void {
-    var result = [2]u8{ @as(u8, @intCast(@intFromEnum(Kind.Bool))), if (value) 1 else 0 };
+pub fn Bool(b: *Buffer, value: bool) !void {
+    var result = [2]u8{ Kind.Bool.code(), if (value) 1 else 0 };
     _ = try b.write(result[0..]);
 }
 
-pub fn uint8(b: *Buffer, value: u8) !void {
-    var result = [2]u8{ @as(u8, @intCast(@intFromEnum(Kind.Uint8))), value };
+pub fn UInt8(b: *Buffer, value: u8) !void {
+    var result = [2]u8{ Kind.UInt8.code(), value };
     _ = try b.write(result[0..]);
 }
 
-pub fn uint16(b: *Buffer, value: u16) !void {
-    var result = [6]u8{ @as(u8, @intCast(@intFromEnum(Kind.UInt16))), 0x00, 0x00, 0x00, 0x00, 0x00 };
+pub fn UInt16(b: *Buffer, value: u16) !void {
+    var result = [6]u8{ Kind.UInt16.code(), 0x00, 0x00, 0x00, 0x00, 0x00 };
     var pos: usize = 1;
     var val = value;
     while (val >= continuation) {
@@ -74,8 +73,8 @@ pub fn uint16(b: *Buffer, value: u16) !void {
     _ = try b.write(result[0..pos]);
 }
 
-pub fn uint32(b: *Buffer, value: u32) !void {
-    var result = [6]u8{ @as(u8, @intCast(@intFromEnum(Kind.UInt32))), 0x00, 0x00, 0x00, 0x00, 0x00 };
+pub fn UInt32(b: *Buffer, value: u32) !void {
+    var result = [6]u8{ Kind.UInt32.code(), 0x00, 0x00, 0x00, 0x00, 0x00 };
     var pos: usize = 1;
     var val = value;
     while (val >= continuation) {
@@ -89,8 +88,8 @@ pub fn uint32(b: *Buffer, value: u32) !void {
     _ = try b.write(result[0..pos]);
 }
 
-pub fn uint64(b: *Buffer, value: u64) !void {
-    var result = [9]u8{ @as(u8, @intCast(@intFromEnum(Kind.UInt64))), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+pub fn UInt64(b: *Buffer, value: u64) !void {
+    var result = [9]u8{ Kind.UInt64.code(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     var pos: usize = 1;
     var val = value;
     while (val >= continuation) {
@@ -104,13 +103,13 @@ pub fn uint64(b: *Buffer, value: u64) !void {
     _ = try b.write(result[0..pos]);
 }
 
-pub fn int32(b: *Buffer, value: i32) !void {
+pub fn Int32(b: *Buffer, value: i32) !void {
     var val = @as(u32, @bitCast(value)) << 1;
     if (value < 0) {
         val = ~val;
     }
 
-    var result = [6]u8{ @as(u8, @intCast(@intFromEnum(Kind.Int32))), 0x00, 0x00, 0x00, 0x00, 0x00 };
+    var result = [6]u8{ Kind.Int32.code(), 0x00, 0x00, 0x00, 0x00, 0x00 };
     var pos: usize = 1;
     while (val >= continuation) {
         result[pos] = @as(u8, @truncate(val | continuation));
@@ -123,13 +122,13 @@ pub fn int32(b: *Buffer, value: i32) !void {
     _ = try b.write(result[0..pos]);
 }
 
-pub fn int64(b: *Buffer, value: i64) !void {
+pub fn Int64(b: *Buffer, value: i64) !void {
     var val = @as(u64, @bitCast(value)) << 1;
     if (value < 0) {
         val = ~val;
     }
 
-    var result = [11]u8{ @as(u8, @intCast(@intFromEnum(Kind.Int64))), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    var result = [11]u8{ Kind.Int64.code(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     var pos: usize = 1;
     while (val >= continuation) {
         result[pos] = @as(u8, @truncate(val | continuation));
@@ -142,17 +141,17 @@ pub fn int64(b: *Buffer, value: i64) !void {
     _ = try b.write(result[0..pos]);
 }
 
-pub fn float32(b: *Buffer, value: f32) !void {
+pub fn Float32(b: *Buffer, value: f32) !void {
     const val = @as(u32, @bitCast(value));
     const b24 = @as(u8, @truncate(val >> 24));
     const b16 = @as(u8, @truncate(val >> 16));
     const b8 = @as(u8, @truncate(val >> 8));
     const b0 = @as(u8, @truncate(val));
-    const result = [5]u8{ @as(u8, @intCast(@intFromEnum(Kind.Float32))), b24, b16, b8, b0 };
+    const result = [5]u8{ Kind.Float32.code(), b24, b16, b8, b0 };
     _ = try b.write(result[0..]);
 }
 
-pub fn float64(b: *Buffer, value: f64) !void {
+pub fn Float64(b: *Buffer, value: f64) !void {
     const val = @as(u64, @bitCast(value));
     const b56 = @as(u8, @truncate(val >> 56));
     const b48 = @as(u8, @truncate(val >> 48));
@@ -162,7 +161,7 @@ pub fn float64(b: *Buffer, value: f64) !void {
     const b16 = @as(u8, @truncate(val >> 16));
     const b8 = @as(u8, @truncate(val >> 8));
     const b0 = @as(u8, @truncate(val));
-    const result = [9]u8{ @as(u8, @intCast(@intFromEnum(Kind.Float32))), b56, b48, b40, b32, b24, b16, b8, b0 };
+    const result = [9]u8{ Kind.Float64.code(), b56, b48, b40, b32, b24, b16, b8, b0 };
 
     _ = try b.write(result[0..]);
 }
