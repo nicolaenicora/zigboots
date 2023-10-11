@@ -5,7 +5,8 @@ const Buffer = @import("xstd/bytes/buffer.zig").Buffer;
 
 const polyglot = @import("polyglot/types.zig");
 
-const E = error{NoComment};
+const E = error{ NoComment, WithComment };
+const E1 = error{WithComment};
 
 pub fn main() !void {
     std.debug.print("Starting application.\n", .{});
@@ -20,15 +21,55 @@ pub fn main() !void {
 
     var encoder = polyglot.encoder.init(&buf);
 
+    _ = try encoder.Nil();
     _ = try encoder.Int64(255);
+    _ = try encoder.Int32(512);
+    _ = try encoder.Uint8(255);
     _ = try encoder.Uint16(23);
-    _ = try encoder.Error(E, E.NoComment);
+    _ = try encoder.Uint32(230);
+    _ = try encoder.Uint64(2300);
+    _ = try encoder.Error(E.NoComment);
+    _ = try encoder.Bool(true);
+    _ = try encoder.String("HURAAAA");
+    _ = try encoder.Bytes("Array of bytes");
+    _ = try encoder.Slice(3, polyglot.Kind.UInt8);
+    _ = try encoder.Uint8(1);
+    _ = try encoder.Uint8(2);
+    _ = try encoder.Uint8(3);
+
+    _ = try encoder.Map(3, polyglot.Kind.String, polyglot.Kind.UInt64);
+    _ = try encoder.String("key1");
+    _ = try encoder.Uint64(1);
+    _ = try encoder.String("key2");
+    _ = try encoder.Uint64(2);
+    _ = try encoder.String("key3");
+    _ = try encoder.Uint64(3);
 
     const bufBytes = buf.bytes();
     std.debug.print("Buffer - {any}\n", .{bufBytes});
 
     var decoder = polyglot.decoder.init(bufBytes);
-    std.debug.print("Result - {any}\n", .{try decoder.Int64()});
-    std.debug.print("Result - {any}\n", .{try decoder.Uint16()});
-    std.debug.print("Result - {s}\n", .{try decoder.Error()});
+    std.debug.print("Nil - {any}\n", .{decoder.Nil()});
+    std.debug.print("Int64 - {any}\n", .{try decoder.Int64()});
+    std.debug.print("Int32 - {any}\n", .{try decoder.Int32()});
+    std.debug.print("Uint8 - {any}\n", .{try decoder.Uint8()});
+    std.debug.print("Uint16 - {any}\n", .{try decoder.Uint16()});
+    std.debug.print("Uint32 - {any}\n", .{try decoder.Uint32()});
+    std.debug.print("Uint64 - {any}\n", .{try decoder.Uint64()});
+    std.debug.print("Error - {any}\n", .{try decoder.Error(E)});
+    std.debug.print("Bool - {any}\n", .{try decoder.Bool()});
+    std.debug.print("String - {s}\n", .{try decoder.String()});
+    std.debug.print("Bytes - {s}\n", .{try decoder.Bytes()});
+    std.debug.print("Slice Size- {any}\n", .{try decoder.Slice(polyglot.Kind.UInt8)});
+    std.debug.print("Slice 1- {}\n", .{try decoder.Uint8()});
+    std.debug.print("Slice 2- {}\n", .{try decoder.Uint8()});
+    std.debug.print("Slice 3- {}\n", .{try decoder.Uint8()});
+
+    std.debug.print("Slice Size- {any}\n", .{try decoder.Map(polyglot.Kind.String, polyglot.Kind.UInt64)});
+    std.debug.print("Map k1- {s}\n", .{try decoder.String()});
+    std.debug.print("Map k1- {any}\n", .{try decoder.Uint64()});
+    std.debug.print("Map k2- {s}\n", .{try decoder.String()});
+    std.debug.print("Map k2- {any}\n", .{try decoder.Uint64()});
+    std.debug.print("Map k3- {s}\n", .{try decoder.String()});
+    std.debug.print("Map k3- {any}\n", .{try decoder.Uint64()});
 }

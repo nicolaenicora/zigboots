@@ -1,8 +1,10 @@
 const std = @import("std");
 const Buffer = @import("../xstd/bytes/buffer.zig").Buffer;
 
-const Kind = @import("common.zig").Kind;
-const continuation = @import("common.zig").continuation;
+const Kind = @import("types.zig").Kind;
+const continuation = @import("types.zig").continuation;
+
+pub const EncodingError = error{NotError};
 
 pub fn Nil(
     b: *Buffer,
@@ -14,19 +16,19 @@ pub fn Nil(
 pub fn Map(b: *Buffer, size: usize, key: Kind, value: Kind) !void {
     var result = [3]u8{ Kind.Map.code(), key.code(), value.code() };
     _ = try b.write(result[0..]);
-    try Uint32(b, size);
+    try Uint32(b, @as(u32, @intCast(size)));
 }
 
 pub fn Slice(b: *Buffer, size: usize, kind: Kind) !void {
     var result = [2]u8{ Kind.Slice.code(), kind.code() };
     _ = try b.write(result[0..]);
-    try Uint32(b, size);
+    try Uint32(b, @as(u32, @intCast(size)));
 }
 
 pub fn Bytes(b: *Buffer, value: []const u8) !void {
     var result = [1]u8{Kind.Bytes.code()};
     _ = try b.write(result[0..]);
-    try Uint32(b, value.len);
+    try Uint32(b, @as(u32, @intCast(value.len)));
     _ = try b.write(value[0..]);
 }
 
@@ -39,13 +41,11 @@ pub fn String(b: *Buffer, value: []const u8) !void {
     _ = try b.write(value);
 }
 
-pub fn Error(b: *Buffer, comptime V: type, value: V) !void {
+pub fn Error(b: *Buffer, value: anyerror) !void {
     var result = [1]u8{Kind.Error.code()};
     _ = try b.write(result[0..]);
 
-    var str_buf = [_]u8{undefined} ** (10 * 1024);
-    const buf = try std.fmt.bufPrint(&str_buf, "{any}", .{value});
-    try String(b, buf[0..]);
+    try String(b, @errorName(value));
 }
 
 pub fn Bool(b: *Buffer, value: bool) !void {

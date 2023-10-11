@@ -1,6 +1,6 @@
 const std = @import("std");
 const encode = @import("encode.zig");
-const Kind = @import("common.zig").Kind;
+const Kind = @import("types.zig").Kind;
 
 const Buffer = @import("../xstd/bytes/buffer.zig").Buffer;
 
@@ -22,8 +22,8 @@ pub fn Map(self: *Self, size: u32, key: Kind, value: Kind) !*Self {
     return self;
 }
 
-pub fn Slice(self: *Self, kind: Kind) !*Self {
-    try encode.Slice(self.buff, kind);
+pub fn Slice(self: *Self, size: u32, kind: Kind) !*Self {
+    try encode.Slice(self.buff, size, kind);
     return self;
 }
 
@@ -37,8 +37,8 @@ pub fn String(self: *Self, value: []const u8) !*Self {
     return self;
 }
 
-pub fn Error(self: *Self, comptime V: type, value: V) !*Self {
-    try encode.Error(self.buff, V, value);
+pub fn Error(self: *Self, value: anyerror) !*Self {
+    try encode.Error(self.buff, value);
     return self;
 }
 

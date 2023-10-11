@@ -1,13 +1,14 @@
-pub const DecodingError = error{ InvalidSlice, InvalidMap, InvalidBytes, InvalidString, InvalidError, InvalidBool, InvalidUint8, InvalidUint16, InvalidUint32, InvalidUint64, InvalidInt32, InvalidInt64, InvalidFloat32, InvalidFloat64 };
 const std = @import("std");
 const Buffer = @import("../xstd/bytes/buffer.zig").Buffer;
 
-const Kind = @import("common.zig").Kind;
-const continuation = @import("common.zig").continuation;
+const Kind = @import("types.zig").Kind;
+const continuation = @import("types.zig").continuation;
 
 const VarIntLen16 = 3;
 const VarIntLen32 = 5;
 const VarIntLen64 = 10;
+
+pub const DecodingError = error{ InvalidSlice, InvalidMap, InvalidBytes, InvalidString, InvalidError, InvalidBool, InvalidUint8, InvalidUint16, InvalidUint32, InvalidUint64, InvalidInt32, InvalidInt64, InvalidFloat32, InvalidFloat64 };
 
 pub fn Result(comptime V: type) type {
     return struct {
@@ -22,7 +23,7 @@ pub fn Nil(b: []const u8) Result(bool) {
             return .{ .buff = b[1..], .val = true };
         }
     }
-    return .{ b, false };
+    return .{ .buff = b, .val = false };
 }
 
 pub fn Map(b: []const u8, key: Kind, value: Kind) !Result(u32) {
@@ -58,7 +59,7 @@ pub fn Bytes(b: []const u8) !Result([]const u8) {
     return DecodingError.InvalidBytes;
 }
 
-fn String(b: []const u8) !Result([]const u8) {
+pub fn String(b: []const u8) !Result([]const u8) {
     if (b.len > 0) {
         if (b[0] == Kind.String.code()) {
             const r = try Uint32(b[1..]);

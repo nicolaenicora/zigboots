@@ -177,8 +177,8 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure, comptime pa
             return self;
         }
 
-        pub fn Error(self: *Self, comptime V: type, value: V) *Self {
-            return self.Attr("error", V, value);
+        pub fn Error(self: *Self, value: anyerror) *Self {
+            return self.Attr("error", []const u8, @errorName(value));
         }
 
         pub fn Msg(self: *Self, message: []const u8) void {
@@ -321,7 +321,7 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure, comptime pa
 //         .Msg("Initialization...");
 //     @constCast(&logger.Error())
 //         .Attr("database", []const u8, "myapp huraaaa !")
-//         .Error(Error, Error.OutOfMemoryClient)
+//         .Error(Error.OutOfMemoryClient)
 //         .Attr("element1", Element, Element{ .int = 32, .string = "Element1" })
 //         .Msg("Initialization...");
 //     @constCast(&logger.Disabled())

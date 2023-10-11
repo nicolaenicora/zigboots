@@ -1,5 +1,6 @@
 const std = @import("std");
 const decode = @import("decode.zig");
+const Kind = @import("types.zig").Kind;
 
 const Self = @This();
 
@@ -9,20 +10,20 @@ pub fn init(bytes: []const u8) Self {
     return Self{ .buff = bytes };
 }
 
-pub fn Nil(self: *Self) !bool {
-    const r = try decode.Nil(self.buff);
+pub fn Nil(self: *Self) bool {
+    const r = decode.Nil(self.buff);
     self.buff = r.buff;
     return r.val;
 }
 
-pub fn Map(self: *Self) !u32 {
-    const r = try decode.Map(self.buff);
+pub fn Map(self: *Self, key: Kind, value: Kind) !u32 {
+    const r = try decode.Map(self.buff, key, value);
     self.buff = r.buff;
     return r.val;
 }
 
-pub fn Slice(self: *Self) !u32 {
-    const r = try decode.Slice(self.buff);
+pub fn Slice(self: *Self, kind: Kind) !u32 {
+    const r = try decode.Slice(self.buff, kind);
     self.buff = r.buff;
     return r.val;
 }
@@ -39,10 +40,14 @@ pub fn String(self: *Self) ![]const u8 {
     return r.val;
 }
 
-pub fn Error(self: *Self) ![]const u8 {
+pub fn ErrorAsString(self: *Self) ![]const u8 {
     const r = try decode.Error(self.buff);
     self.buff = r.buff;
     return r.val;
+}
+
+pub fn Error(self: *Self, comptime T: type) !?T {
+    return stringToError(T, try self.ErrorAsString());
 }
 
 pub fn Bool(self: *Self) !bool {
@@ -97,4 +102,27 @@ pub fn Float64(self: *Self) !f64 {
     const r = try decode.Float64(self.buff);
     self.buff = r.buff;
     return r.val;
+}
+
+fn stringToError(comptime T: type, str: []const u8) ?T {
+    if (@typeInfo(T).ErrorSet.?.len <= 100) {
+        const kvs = comptime blk: {
+            const ErrorKV = struct { []const u8, T };
+            var kvs_array: [@typeInfo(T).ErrorSet.?.len]ErrorKV = undefined;
+
+            inline for (@typeInfo(T).ErrorSet.?, 0..) |errField, i| {
+                kvs_array[i] = .{ errField.name, @field(T, errField.name) };
+            }
+
+            break :blk kvs_array[0..];
+        };
+        return std.ComptimeStringMap(T, kvs).get(str);
+    } else {
+        inline for (@typeInfo(T).ErrorSet.?) |errField| {
+            if (std.mem.eql(u8, str, errField.name)) {
+                return @field(T, errField.name);
+            }
+        }
+        return null;
+    }
 }

@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const CircularLifoList = @import("list/circular.zig").CircularLifoList;
 
-const PoolError = error{
+pub const PoolError = error{
     NoCapacity,
 };
 
