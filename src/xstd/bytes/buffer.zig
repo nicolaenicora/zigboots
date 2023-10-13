@@ -21,7 +21,7 @@ pub fn BufferPool(comptime threadsafe: bool) type {
             return Self{ .queue = Stack(Buffer(threadsafe)).init(), .allocator = allocator };
         }
 
-        pub fn pop(self: *Self) Error!Buffer(threadsafe) {
+        pub fn pop(self: *Self) !Buffer(threadsafe) {
             if (self.queue.pop()) |n| {
                 return n.data;
             }
@@ -78,7 +78,7 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             self.allocator.free(self.ptr[0..self.cap]);
         }
 
-        pub fn resize(self: *Self, cap: usize) Error!void {
+        pub fn resize(self: *Self, cap: usize) !void {
             const l = self.len;
 
             var slice = try self.allocator.alloc(u8, cap);
@@ -90,11 +90,11 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             self.cap = cap;
         }
 
-        pub fn shrink(self: *Self) Error!void {
+        pub fn shrink(self: *Self) !void {
             try self.resize(self.len);
         }
 
-        pub fn write(self: *Self, array: []const u8) Error!usize {
+        pub fn write(self: *Self, array: []const u8) !usize {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -114,7 +114,7 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             return array.len;
         }
 
-        fn read(self: *Self, dst: []u8) Error!usize {
+        fn read(self: *Self, dst: []u8) !usize {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -167,7 +167,7 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             return null;
         }
 
-        pub fn clone(self: *Self) Error!Self {
+        pub fn clone(self: *Self) !Self {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -187,7 +187,7 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             return buf;
         }
 
-        pub fn copy(self: *Self) Error![]u8 {
+        pub fn copy(self: *Self) ![]u8 {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();
@@ -211,7 +211,7 @@ pub fn BufferManaged(comptime threadsafe: bool) type {
             }
         }
 
-        pub fn repeat(self: *Self, n: usize) Error!void {
+        pub fn repeat(self: *Self, n: usize) !void {
             if (threadsafe) {
                 self.mu.lock();
                 defer self.mu.unlock();

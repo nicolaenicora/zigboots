@@ -1,7 +1,7 @@
-pub const encode = @import("encode.zig");
-pub const decode = @import("decode.zig");
-pub const decoder = @import("decoder.zig");
-pub const encoder = @import("encoder.zig");
+pub const Encode = @import("encode.zig");
+pub const Decode = @import("decode.zig");
+pub const Decoder = @import("decoder.zig");
+pub const Encoder = @import("encoder.zig");
 
 pub const Kind = enum(u8) {
     Nil = 0,

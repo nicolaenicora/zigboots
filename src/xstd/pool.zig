@@ -131,8 +131,8 @@ test "Pool Usage" {
 
 // const Pool = @import("xstd/pool.zig").Pool;
 
-// pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Utf8Buffer(false) {
-//     return Utf8Buffer(false).init(allocator);
+// pub fn NewUtf8Buffer(allocator: std.mem.Allocator) Utf8Buffer {
+//     return Utf8Buffer.init(allocator);
 // }
 
 // pub fn PrintElement(ch: []const u8) void {
@@ -151,7 +151,7 @@ test "Pool Usage" {
 //     // var sb = try utf8BufferPool.pop();
 //     // defer sb.deinit();
 
-//     var utf8BufferPool = try Pool(Utf8Buffer(false)).init(allocator, NewUtf8Buffer);
+//     var utf8BufferPool = try Pool(Utf8Buffer).init(allocator, NewUtf8Buffer);
 //     var sb = try utf8BufferPool.pop();
 
 //     try sb.append("SB------");

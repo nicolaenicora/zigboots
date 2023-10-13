@@ -273,8 +273,7 @@ pub fn Entry(comptime format: Format, comptime timemeasure: Measure, comptime pa
 
 // const std = @import("std");
 // const debug = std.debug;
-// const pstr = @import("xstd/bytes/strings.zig");
-// const StringBuilder = pstr.StringBuilder;
+// const StringBuilder = @import("xstd/bytes/types.zig").StringBuilder;
 
 // const plog = @import("xstd/logger.zig");
 // const Logger = plog.Logger(.simple, .nanos, "YYYY MMM Do dddd HH:mm:ss.SSS - Qo");

@@ -1,30 +1,33 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
 const Stack = std.atomic.Stack;
 
 const Error = @import("buffer.zig").Error;
-const Buffer = @import("buffer.zig").Buffer;
+const BufferManaged = @import("buffer.zig").BufferManaged;
 
-pub fn Utf8BufferPool(comptime threadsafe: bool) type {
+pub const Utf8BufferPool = Utf8BufferPoolManaged(!builtin.single_threaded);
+pub fn Utf8BufferPoolManaged(comptime threadsafe: bool) type {
     return struct {
         const Self = @This();
 
         allocator: std.mem.Allocator,
-        queue: Stack(Utf8Buffer(threadsafe)),
+        queue: Stack(Utf8BufferManaged(threadsafe)),
 
         pub fn init(allocator: std.mem.Allocator) Self {
-            return Self{ .queue = Stack(Utf8Buffer(threadsafe)).init(), .allocator = allocator };
+            return Self{ .queue = Stack(Utf8BufferManaged(threadsafe)).init(), .allocator = allocator };
         }
 
-        pub fn pop(self: *Self) Error!Utf8Buffer(threadsafe) {
+        pub fn pop(self: *Self) !Utf8BufferManaged(threadsafe) {
             if (self.queue.pop()) |n| {
                 return n.data;
             }
 
-            return try Utf8Buffer(threadsafe).init(self.allocator);
+            return try Utf8BufferManaged(threadsafe).init(self.allocator);
         }
 
-        pub fn push(self: *Self, data: Utf8Buffer(threadsafe)) void {
-            var n = Stack(Utf8Buffer(threadsafe)).Node{
+        pub fn push(self: *Self, data: Utf8BufferManaged(threadsafe)) void {
+            var n = Stack(Utf8BufferManaged(threadsafe)).Node{
                 .data = data,
                 .next = null,
             };
@@ -33,18 +36,19 @@ pub fn Utf8BufferPool(comptime threadsafe: bool) type {
     };
 }
 
-pub fn Utf8Buffer(comptime threadsafe: bool) type {
+pub const Utf8Buffer = Utf8BufferManaged(!builtin.single_threaded);
+pub fn Utf8BufferManaged(comptime threadsafe: bool) type {
     return struct {
         const Self = @This();
 
-        buffer: Buffer(threadsafe),
+        buffer: BufferManaged(threadsafe),
 
         pub fn init(allocator: std.mem.Allocator) Self {
-            return Self{ .buffer = Buffer(threadsafe).init(allocator) };
+            return Self{ .buffer = BufferManaged(threadsafe).init(allocator) };
         }
 
         pub fn initWithFactor(allocator: std.mem.Allocator, factor: u4) Self {
-            return Self{ .buffer = Buffer(threadsafe).initWithFactor(allocator, factor) };
+            return Self{ .buffer = BufferManaged(threadsafe).initWithFactor(allocator, factor) };
         }
 
         pub fn initWithCapacity(allocator: std.mem.Allocator, size: usize) !Self {
@@ -57,19 +61,19 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             self.buffer.deinit();
         }
 
-        pub fn appendN(self: *Self, array: []const u8, numOfChars: usize) Error!void {
+        pub fn appendN(self: *Self, array: []const u8, numOfChars: usize) !void {
             try self.insertAtWithLength(self.buffer.len, array, numOfChars);
         }
 
-        pub fn append(self: *Self, array: []const u8) Error!void {
+        pub fn append(self: *Self, array: []const u8) !void {
             try self.insertAtWithLength(self.buffer.len, array, array.len);
         }
 
-        pub fn insertAt(self: *Self, array: []const u8, index: usize) Error!void {
+        pub fn insertAt(self: *Self, array: []const u8, index: usize) !void {
             try self.insertAtWithLength(index, array, array.len);
         }
 
-        fn insertAtWithLength(self: *Self, index: usize, array: []const u8, len: usize) Error!void {
+        fn insertAtWithLength(self: *Self, index: usize, array: []const u8, len: usize) !void {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
@@ -111,11 +115,11 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             @atomicStore(usize, &self.buffer.len, self.buffer.len + numberOfChars, .Monotonic);
         }
 
-        pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) Error!void {
+        pub fn appendf(self: *Self, comptime format: []const u8, args: anytype) !void {
             return std.fmt.format(self.writer(), format, args);
         }
 
-        pub fn repeat(self: *Self, n: usize) Error!void {
+        pub fn repeat(self: *Self, n: usize) !void {
             try self.buffer.repeat(n);
         }
 
@@ -208,19 +212,19 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return self.replaceAll(src, "");
         }
 
-        pub fn removeFrom(self: *Self, pos: usize) Error!void {
+        pub fn removeFrom(self: *Self, pos: usize) !void {
             try self.removeRange(pos, self.buffer.len);
         }
 
-        pub fn removeEnd(self: *Self, len: usize) Error!void {
+        pub fn removeEnd(self: *Self, len: usize) !void {
             try self.removeRange(self.buffer.len - len, self.buffer.len);
         }
 
-        pub fn removeStart(self: *Self, len: usize) Error!void {
+        pub fn removeStart(self: *Self, len: usize) !void {
             try self.removeRange(0, len);
         }
 
-        pub fn removeRange(self: *Self, start: usize, end: usize) Error!void {
+        pub fn removeRange(self: *Self, start: usize, end: usize) !void {
             if (end < start or end > self.buffer.len) return Error.InvalidRange;
 
             if (threadsafe) {
@@ -256,13 +260,13 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             std.mem.reverse(u8, self.buffer.ptr[0..self.buffer.len]);
         }
 
-        pub fn substract(self: *Self, start: usize, end: usize) Error!Self {
+        pub fn substract(self: *Self, start: usize, end: usize) !Self {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
             }
 
-            var result = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
+            var result = Self{ .buffer = BufferManaged(threadsafe).init(self.buffer.allocator) };
 
             if (self.utf8Position(start, true)) |rStart| {
                 if (self.utf8Position(end, true)) |rEnd| {
@@ -352,14 +356,14 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return null;
         }
 
-        pub fn splitAsCopy(self: *Self, delimiters: []const u8, index: usize) Error!?Self {
+        pub fn splitAsCopy(self: *Self, delimiters: []const u8, index: usize) !?Self {
             if (threadsafe) {
                 self.buffer.mu.lock();
                 defer self.buffer.mu.unlock();
             }
 
             if (self.split(delimiters, index)) |block| {
-                var s = Self{ .buffer = Buffer(threadsafe).init(self.buffer.allocator) };
+                var s = Self{ .buffer = BufferManaged(threadsafe).init(self.buffer.allocator) };
                 try s.append(block);
                 return s;
             }
@@ -399,7 +403,7 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             self.buffer.clear();
         }
 
-        pub fn shrink(self: *Self) Error!void {
+        pub fn shrink(self: *Self) !void {
             try self.buffer.shrink();
         }
 
@@ -480,11 +484,11 @@ pub fn Utf8Buffer(comptime threadsafe: bool) type {
             return Self{ .buffer = try self.buffer.cloneUsingAllocator(allocator) };
         }
 
-        pub fn clone(self: *Self) Error!Self {
+        pub fn clone(self: *Self) !Self {
             return Self{ .buffer = try self.buffer.clone() };
         }
 
-        pub fn copy(self: *Self) Error!?[]u8 {
+        pub fn copy(self: *Self) !?[]u8 {
             return try self.buffer.copy();
         }
 
@@ -640,7 +644,7 @@ test "Basic Usage" {
     var arena = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    var buffer = Utf8Buffer(true).init(arena.allocator());
+    var buffer = Utf8BufferManaged(true).init(arena.allocator());
     defer buffer.deinit();
 
     // Use functions provided
@@ -657,7 +661,7 @@ test "Format Usage" {
     var arena = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    var buffer = Utf8Buffer(true).init(arena.allocator());
+    var buffer = Utf8BufferManaged(true).init(arena.allocator());
     defer buffer.deinit();
 
     // Use functions provided
@@ -673,7 +677,7 @@ test "UTF8 Buffer Tests" {
     var arena = std.heap.ArenaAllocator.init(page_allocator);
     defer arena.deinit();
 
-    var buffer = Utf8Buffer(true).init(arena.allocator());
+    var buffer = Utf8BufferManaged(true).init(arena.allocator());
     defer buffer.deinit();
 
     // truncate
@@ -759,7 +763,7 @@ test "UTF8 Buffer Tests" {
     assert(eql(u8, buffer.split("💯", 5).?, "Hello"));
     assert(eql(u8, buffer.split("💯", 6).?, ""));
 
-    var splitStr = Utf8Buffer(true).init(arena.allocator());
+    var splitStr = Utf8BufferManaged(true).init(arena.allocator());
     defer splitStr.deinit();
 
     try splitStr.append("variable='value'");
