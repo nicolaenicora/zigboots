@@ -1,0 +1,16 @@
+// build.zig.zon
+.{
+    .name = "zigboots",
+    .version = "0.1.0",
+    .dependencies = .{
+        .polyglot = .{
+            .url = "https://github.com/arats-io/zig-polyglot/archive/refs/tags/v0.1.0.tar.gz",
+            .hash = "12200f19db2a9e31e3f6d8a42496872ae230f64f88847c36505ef8ae5942a1144255",
+        },
+        .xstd = .{
+            .url = "https://github.com/arats-io/zig-xstd/archive/refs/tags/v0.1.0.tar.gz",
+            .hash = "1220d870f9a58e70cacfab249f9d25ca31c70ddcb8aee265f4989c06909a3a4b83e3",
+        },
+    },
+    .paths = .{ "README.md", "src" },
+}

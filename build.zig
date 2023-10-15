@@ -24,20 +24,24 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    // const zap = b.dependency("zap", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
+    // xstd
+    const xstd_dep = b.dependency("xstd", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // exe.addModule("zap", zap.module("zap"));
-    // exe.linkLibrary(zap.artifact("facil.io"));
+    exe.addModule("xstd", xstd_dep.module("xstd"));
+    exe.linkLibrary(xstd_dep.artifact("xstd"));
 
-    //exe.linkLibrary(duck.artifact("duckdb"));
-    //exe.installLibraryHeaders(duck.artifact("duckdb"));
+    // polyglot
+    const polyglot_dep = b.dependency("polyglot", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
+    exe.addModule("polyglot", polyglot_dep.module("polyglot"));
+    exe.linkLibrary(polyglot_dep.artifact("polyglot"));
+
     b.installArtifact(exe);
 
     // This *creates* a Run step in the build graph, to be executed when another
