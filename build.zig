@@ -44,28 +44,64 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(exe);
 
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
     const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
     run_cmd.step.dependOn(b.getInstallStep());
-
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    // examples
+    const examples_step = b.step("examples", "build all examples");
+
+    inline for ([_]struct {
+        name: []const u8,
+        src: []const u8,
+    }{
+        .{ .name = "polyglot", .src = "examples/polyglot/polyglot.zig" },
+    }) |excfg| {
+        const ex_name = excfg.name;
+        const ex_src = excfg.src;
+        const ex_build_desc = try std.fmt.allocPrint(
+            b.allocator,
+            "build the {s} example",
+            .{ex_name},
+        );
+        const ex_run_stepname = try std.fmt.allocPrint(
+            b.allocator,
+            "run-{s}",
+            .{ex_name},
+        );
+        const ex_run_stepdesc = try std.fmt.allocPrint(
+            b.allocator,
+            "run the {s} example",
+            .{ex_name},
+        );
+        const example_run_step = b.step(ex_run_stepname, ex_run_stepdesc);
+        const example_step = b.step(ex_name, ex_build_desc);
+
+        var example = b.addExecutable(.{
+            .name = ex_name,
+            .root_source_file = .{ .path = ex_src },
+            .target = target,
+            .optimize = optimize,
+        });
+
+        example.linkLibrary(xstd_dep.artifact("xstd"));
+        example.linkLibrary(polyglot_dep.artifact("polyglot"));
+        example.addModule("xstd", xstd_dep.module("xstd"));
+        example.addModule("polyglot", polyglot_dep.module("polyglot"));
+
+        // const example_run = example.run();
+        const example_run = b.addRunArtifact(example);
+        example_run_step.dependOn(&example_run.step);
+
+        // install the artifact - depending on the "example"
+        const example_build_step = b.addInstallArtifact(example, .{});
+        example_step.dependOn(&example_build_step.step);
+        examples_step.dependOn(&example_build_step.step);
+    }
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
